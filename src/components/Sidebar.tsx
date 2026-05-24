@@ -1,0 +1,100 @@
+import { Clock3, MessageSquareText, Pencil, Plus, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
+import type { Project } from "../types/project";
+
+interface SidebarProps {
+  projects: Project[];
+  activeProjectId: string;
+  onNewProject: () => void;
+  onSelectProject: (projectId: string) => void;
+  onRenameProject: (projectId: string, title: string) => void;
+  onDeleteProject: (projectId: string) => void;
+  onOpenSettings: () => void;
+  onOpenMemory: () => void;
+}
+
+export function Sidebar({
+  projects,
+  activeProjectId,
+  onNewProject,
+  onSelectProject,
+  onRenameProject,
+  onDeleteProject,
+  onOpenSettings,
+  onOpenMemory
+}: SidebarProps) {
+  function rename(project: Project) {
+    const nextTitle = window.prompt("编辑会话名称", project.title)?.trim();
+    if (nextTitle) onRenameProject(project.id, nextTitle);
+  }
+
+  function remove(project: Project) {
+    if (!window.confirm(`删除会话“${project.title}”？`)) return;
+    onDeleteProject(project.id);
+  }
+
+  return (
+    <aside className="sidebar">
+      <div className="brand-row">
+        <img src="/assets/agent-avatar.png" alt="" className="brand-avatar" />
+        <div className="brand-name">Jindou Agent</div>
+        <button className="icon-button" type="button" onClick={onOpenSettings} aria-label="API 设置">
+          <Settings2 size={18} />
+        </button>
+      </div>
+
+      <button className="new-chat-button" type="button" onClick={onNewProject}>
+        <Plus size={18} />
+        新建创作
+      </button>
+
+      <label className="search-box">
+        <Search size={16} />
+        <input placeholder="搜索项目" />
+      </label>
+
+      <div className="sidebar-section-title">
+        <Clock3 size={16} />
+        最近对话
+      </div>
+
+      <div className="project-list">
+        {projects.map((project) => (
+          <div
+            key={project.id}
+            className={`project-item ${project.id === activeProjectId ? "active" : ""}`}
+          >
+            <button type="button" className="project-main" onClick={() => onSelectProject(project.id)}>
+              <MessageSquareText size={18} />
+              <span>
+                <strong>{project.title}</strong>
+                <small>{project.tag}</small>
+              </span>
+            </button>
+            <span className="project-actions">
+              <button type="button" onClick={() => rename(project)} aria-label="编辑会话名称">
+                <Pencil size={14} />
+              </button>
+              <button type="button" onClick={() => remove(project)} aria-label="删除会话">
+                <Trash2 size={14} />
+              </button>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="sidebar-bottom">
+        <button className="memory-entry" type="button" onClick={onOpenMemory}>
+          <Sparkles size={17} />
+          项目记忆
+        </button>
+        <div className="user-card">
+          <img src="/assets/user-avatar.png" alt="" />
+          <span>
+            <strong>金豆小子</strong>
+            <small>本地创作者</small>
+          </span>
+        </div>
+      </div>
+    </aside>
+  );
+}
