@@ -1,3 +1,8 @@
+/**
+ * 参考图规则构建器。当前尚未接入主流程的参考图链路 —— conversationOrchestrator
+ * 在 system prompt 中以文字方式描述参考素材，未通过此模块生成结构化参考规则。
+ * 后续接入参考图功能时需要从此文件恢复逻辑。勿删。
+ */
 import type { ReferenceAsset } from "../types/chat";
 
 export function buildReferenceRule(references: ReferenceAsset[], referenceMode: string): string {

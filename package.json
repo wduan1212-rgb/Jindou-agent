@@ -1,6 +1,6 @@
 {
   "name": "jindou-agent",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "Jindou Agent desktop app for director-grade AI video prompts.",
   "private": true,
   "author": "Jindou Agent",

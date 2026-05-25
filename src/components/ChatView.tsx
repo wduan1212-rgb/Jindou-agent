@@ -14,6 +14,7 @@ interface ChatViewProps {
   onOptimizePrompt: (prompt: PromptSegment) => void;
   onSavePromptMemory: (prompt: PromptSegment) => void;
   onGenerateVideo: (prompt: PromptSegment) => void;
+  onQuestionSubmit: (answer: string) => void;
 }
 
 const quickCards = [
@@ -33,7 +34,8 @@ export function ChatView({
   onSend,
   onOptimizePrompt,
   onSavePromptMemory,
-  onGenerateVideo
+  onGenerateVideo,
+  onQuestionSubmit
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -93,6 +95,7 @@ export function ChatView({
                 onOptimizePrompt={onOptimizePrompt}
                 onSavePromptMemory={onSavePromptMemory}
                 onGenerateVideo={onGenerateVideo}
+                onQuestionSubmit={onQuestionSubmit}
               />
             ))}
             {disabled && (

@@ -1,3 +1,8 @@
+/**
+ * @legacy LLM-first 架构之前的旧模块。当前主流程使用 conversationOrchestrator.ts
+ * 直接通过 system prompt 驱动 LLM 完成需求分析和追问，不再经过此文件。
+ * 保留供参考，勿删。
+ */
 import type { AgentQuestion, ReferenceAsset, ShotMode } from "../types/chat";
 import type { ProjectMemory } from "../types/memory";
 import { extractTimelineItems, parseDurationSeconds } from "./durationSplitter";

@@ -1,4 +1,5 @@
 import { PromptCard } from "./PromptCard";
+import { QuestionOptions } from "./QuestionOptions";
 import type { ChatMessage, PromptSegment } from "../types/chat";
 
 interface MessageBubbleProps {
@@ -6,13 +7,15 @@ interface MessageBubbleProps {
   onOptimizePrompt: (prompt: PromptSegment) => void;
   onSavePromptMemory: (prompt: PromptSegment) => void;
   onGenerateVideo: (prompt: PromptSegment) => void;
+  onQuestionSubmit: (answer: string) => void;
 }
 
 export function MessageBubble({
   message,
   onOptimizePrompt,
   onSavePromptMemory,
-  onGenerateVideo
+  onGenerateVideo,
+  onQuestionSubmit
 }: MessageBubbleProps) {
   const isUser = message.role === "user";
 
@@ -34,6 +37,10 @@ export function MessageBubble({
               />
             ))}
           </div>
+        )}
+
+        {message.kind === "questions" && message.questions && (
+          <QuestionOptions questions={message.questions} onSubmit={onQuestionSubmit} />
         )}
       </div>
       {isUser && <img src="/assets/user-avatar.png" alt="" className="message-avatar" />}

@@ -1,3 +1,8 @@
+/**
+ * @legacy LLM-first 架构之前的旧模块。当前主流程由 conversationOrchestrator.ts
+ * 直接驱动 LLM 生成 PROMPT_CARD，不再经过本地模板拼装。
+ * 保留供参考，勿删。
+ */
 import { NEGATIVE_RULES } from "../data/negativeRules";
 import { STYLE_PRESETS } from "../data/stylePresets";
 import {

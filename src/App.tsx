@@ -100,20 +100,34 @@ export default function App() {
     }));
 
     setIsThinking(true);
-    const result = await runAgentTurn({
-      input: text,
-      messages: projectSnapshot.messages,
-      references: projectSnapshot.references,
-      memory: projectSnapshot.memory
-    });
+    try {
+      const result = await runAgentTurn({
+        input: text,
+        messages: projectSnapshot.messages,
+        references: projectSnapshot.references,
+        memory: projectSnapshot.memory
+      });
 
-    updateProject(projectSnapshot.id, (project) => ({
-      ...project,
-      memory: result.memory,
-      updatedAt: nowIso(),
-      messages: [...project.messages, ...result.messages]
-    }));
-    setIsThinking(false);
+      updateProject(projectSnapshot.id, (project) => ({
+        ...project,
+        memory: result.memory,
+        updatedAt: nowIso(),
+        messages: [...project.messages, ...result.messages]
+      }));
+    } catch (error) {
+      const errorNotice = createMessage({
+        role: "assistant",
+        kind: "notice",
+        content: `请求失败：${error instanceof Error ? error.message : "未知错误"}。请检查 API 设置后重试。`
+      });
+      updateProject(projectSnapshot.id, (project) => ({
+        ...project,
+        updatedAt: nowIso(),
+        messages: [...project.messages, errorNotice]
+      }));
+    } finally {
+      setIsThinking(false);
+    }
   }
 
   function handleOptimizePrompt(prompt: PromptSegment) {
@@ -156,14 +170,10 @@ export default function App() {
 
   function handleGenerateVideo() {
     if (!activeProject) return;
-    const settings = loadApiSettings();
-    const content = settings.videoApiKey
-      ? "视频模型设置已保存。第一版暂未启用真实视频生成接口，当前先复制提示词到视频模型中使用。"
-      : "当前未配置视频模型 API。你可以先复制提示词到视频模型中使用，或在设置中接入视频模型 API。";
     const notice = createMessage({
       role: "assistant",
       kind: "notice",
-      content
+      content: "视频生成功能即将支持，敬请期待。当前可复制提示词到视频模型中使用。"
     });
     updateProject(activeProject.id, (project) => ({
       ...project,
@@ -262,6 +272,7 @@ export default function App() {
         onOptimizePrompt={handleOptimizePrompt}
         onSavePromptMemory={handleSavePromptMemory}
         onGenerateVideo={handleGenerateVideo}
+        onQuestionSubmit={handleSend}
       />
 
       {settingsOpen && <ApiSettingsModal onClose={() => setSettingsOpen(false)} />}

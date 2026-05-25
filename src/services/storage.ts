@@ -74,15 +74,28 @@ export function loadApiSettings(): ApiSettings {
 
   try {
     const raw = localStorage.getItem(API_SETTINGS_KEY) || sessionStorage.getItem(LEGACY_SESSION_API_SETTINGS_KEY);
-    if (!raw) return fallback;
+    if (!raw) return resolveEnvFallback(fallback);
     const settings = { ...fallback, ...(JSON.parse(raw) as Partial<ApiSettings>) };
     if (!localStorage.getItem(API_SETTINGS_KEY)) {
       localStorage.setItem(API_SETTINGS_KEY, JSON.stringify(settings));
     }
     return settings;
   } catch {
-    return fallback;
+    return resolveEnvFallback(fallback);
   }
+}
+
+function resolveEnvFallback(fallback: ApiSettings): ApiSettings {
+  if (typeof process !== "undefined" && process.env) {
+    return {
+      ...fallback,
+      llmApiKey: process.env.LLM_API_KEY || fallback.llmApiKey,
+      llmBaseUrl: process.env.LLM_BASE_URL || fallback.llmBaseUrl,
+      llmModel: process.env.LLM_MODEL || fallback.llmModel,
+      videoApiKey: process.env.VIDEO_API_KEY || fallback.videoApiKey
+    };
+  }
+  return fallback;
 }
 
 export function saveApiSettings(settings: ApiSettings): void {

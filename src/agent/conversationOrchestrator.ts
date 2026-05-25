@@ -9,7 +9,6 @@ import type { ChatMessage, PromptSegment, ReferenceAsset, ShotMode } from "../ty
 import type { ProjectMemory } from "../types/memory";
 
 const BRAND_KEYWORDS = [
-  "logo",
   "品牌名",
   "品牌标识",
   "商标",
@@ -145,25 +144,21 @@ export async function runAgentTurn(args: AgentTurnArgs): Promise<AgentTurnResult
     ? detectQuestionForUser(visibleReply)
     : promptCardContents.length === 0 && detectQuestionForUser(reply);
 
-  const hasBrandKeywords = checkBrandKeywords(reply);
+  const hasBrandKeywords = checkBrandKeywords(reply, args.input);
   const hasSensitiveContent = checkSensitiveContent(reply);
 
+  const reminderParts: string[] = [];
   if (hasBrandKeywords && !hasQuestionForUser) {
-    visibleReply = [
-      visibleReply,
-      "版权提醒：回复中包含品牌、商标或 Logo 相关元素，请确认你拥有使用授权；真实品牌 Logo 建议后期手动添加，避免 AI 生成造成版权或商标风险。"
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+    reminderParts.push("回复中包含品牌、商标或 Logo 相关元素，请确认你拥有使用授权；真实品牌 Logo 建议后期手动添加，避免 AI 生成造成版权或商标风险。");
   }
-
   if (hasSensitiveContent) {
+    reminderParts.push("回复中包含可能涉及军政、暴力、违法或其他敏感内容的元素，请根据目标平台政策自行修改或删除相关描述。");
+  }
+  if (reminderParts.length > 0) {
     visibleReply = [
-      "安全提醒：回复中包含可能涉及军政、暴力、违法或其他敏感内容的元素，请根据目标平台政策自行修改或删除相关描述。",
+      "温馨提示：\n" + reminderParts.map((part) => "· " + part).join("\n"),
       visibleReply
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+    ].filter(Boolean).join("\n\n");
   }
 
   if (promptCardContents.length > 0) {
@@ -727,14 +722,25 @@ function stripPromptCards(text: string): string {
   return text.replace(/<PROMPT_CARD>[\s\S]*?<\/PROMPT_CARD>/gi, "").trim();
 }
 
-function checkBrandKeywords(text: string): boolean {
-  const normalizedText = text.toLowerCase();
-  return BRAND_KEYWORDS.some((keyword) => normalizedText.includes(keyword.toLowerCase()));
+function checkBrandKeywords(text: string, userInput?: string): boolean {
+  const lines = text.split("\n");
+  const negativePrefix = /^(?:[^a-zA-Z一-鿿]*(?:不|不要|不生成|不出现|不需|不要有|禁止|避免|排除|去除|无|没有|无需))[^\n]*$/i;
+  const filteredLines = lines.filter((line) => !negativePrefix.test(line.trim()));
+  const filteredText = filteredLines.join("\n").toLowerCase();
+  const userInputLower = (userInput || "").toLowerCase();
+  return BRAND_KEYWORDS.some((keyword) => {
+    const keywordLower = keyword.toLowerCase();
+    if (userInputLower.includes(keywordLower)) return false;
+    return filteredText.includes(keywordLower);
+  });
 }
 
 function checkSensitiveContent(text: string): boolean {
-  const normalizedText = text.toLowerCase();
-  return SENSITIVE_KEYWORDS.some((keyword) => normalizedText.includes(keyword.toLowerCase()));
+  const lines = text.split("\n");
+  const negativePrefix = /^(?:[^a-zA-Z一-鿿]*(?:不|不要|不生成|不出现|不需|不要有|禁止|避免|排除|去除|无|没有|无需))[^\n]*$/i;
+  const filteredLines = lines.filter((line) => !negativePrefix.test(line.trim()));
+  const filteredText = filteredLines.join("\n").toLowerCase();
+  return SENSITIVE_KEYWORDS.some((keyword) => filteredText.includes(keyword.toLowerCase()));
 }
 
 function detectQuestionForUser(text: string): boolean {

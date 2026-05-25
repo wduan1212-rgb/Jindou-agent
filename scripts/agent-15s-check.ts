@@ -197,17 +197,19 @@ function installNodeApiSettingsShim() {
   const storage: SessionStorageShim = {
     length: 1,
     getItem(key: string) {
-      return key === "jindou.apiSettings.session.v1" ? settings : null;
+      return key === "jindou.apiSettings.session.v1" || key === "jindou.apiSettings.v1" ? settings : null;
     },
     setItem() {},
     removeItem() {},
     clear() {},
     key(index: number) {
-      return index === 0 ? "jindou.apiSettings.session.v1" : null;
+      return index === 0 ? "jindou.apiSettings.v1" : index === 1 ? "jindou.apiSettings.session.v1" : null;
     }
   };
 
-  (globalThis as typeof globalThis & { sessionStorage?: SessionStorageShim }).sessionStorage = storage;
+  const g = globalThis as typeof globalThis & { sessionStorage?: SessionStorageShim; localStorage?: SessionStorageShim };
+  g.sessionStorage = storage;
+  g.localStorage = storage;
 }
 
 function readLocalEnv(): Record<string, string> {

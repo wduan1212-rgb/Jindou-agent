@@ -56,12 +56,10 @@ export function createJindouServer({ root, staticDir = null } = {}) {
       }
 
       if (req.method === "POST" && url.pathname === "/api/video/generate") {
-        if (!process.env.VIDEO_API_KEY) {
-          sendJson(res, 501, {
-            error: "当前未配置视频模型 API。你可以先复制提示词到视频模型中使用，或在设置中接入视频模型 API。"
-          });
-          return;
-        }
+        sendJson(res, 501, {
+          message: "视频生成功能尚未接入，敬请期待。"
+        });
+        return;
       }
 
       if (req.method === "GET" && staticDir) {
