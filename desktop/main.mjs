@@ -9,6 +9,7 @@ const iconPath = process.platform === "win32"
   ? path.join(root, "build", "icon.ico")
   : path.join(root, "build", "icon.png");
 const stableUserDataDir = path.join(app.getPath("appData"), "Jindou Agent");
+const desktopServerPort = 47837;
 
 app.setPath("userData", stableUserDataDir);
 
@@ -16,13 +17,19 @@ let server = null;
 let serverUrl = "";
 let mainWindow = null;
 
+const singleInstanceLock = app.requestSingleInstanceLock();
+
+if (!singleInstanceLock) {
+  app.quit();
+}
+
 async function startLocalServer() {
   loadEnvFiles(root);
   server = createJindouServer({ root, staticDir: distDir });
 
   await new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
+    server.listen(desktopServerPort, "127.0.0.1", () => {
       const address = server.address();
       if (!address || typeof address === "string") {
         reject(new Error("Unable to resolve local server port."));
@@ -57,15 +64,23 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(async () => {
-  Menu.setApplicationMenu(null);
-  await startLocalServer();
-  createWindow();
+if (singleInstanceLock) {
+  app.whenReady().then(async () => {
+    Menu.setApplicationMenu(null);
+    await startLocalServer();
+    createWindow();
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
   });
-});
+
+  app.on("second-instance", () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  });
+}
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
