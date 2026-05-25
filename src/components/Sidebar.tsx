@@ -1,4 +1,4 @@
-import { Clock3, MessageSquareText, Pencil, Plus, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
+import { Clock3, Download, MessageSquareText, Pencil, Plus, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
 import type { Project } from "../types/project";
 
 interface SidebarProps {
@@ -10,6 +10,8 @@ interface SidebarProps {
   onDeleteProject: (projectId: string) => void;
   onOpenSettings: () => void;
   onOpenMemory: () => void;
+  onCheckUpdates: () => void;
+  isCheckingUpdate?: boolean;
 }
 
 export function Sidebar({
@@ -20,7 +22,9 @@ export function Sidebar({
   onRenameProject,
   onDeleteProject,
   onOpenSettings,
-  onOpenMemory
+  onOpenMemory,
+  onCheckUpdates,
+  isCheckingUpdate
 }: SidebarProps) {
   function rename(project: Project) {
     const nextTitle = window.prompt("编辑会话名称", project.title)?.trim();
@@ -83,6 +87,10 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-bottom">
+        <button className="memory-entry" type="button" onClick={onCheckUpdates} disabled={isCheckingUpdate}>
+          <Download size={17} />
+          {isCheckingUpdate ? "检查中..." : "检查更新"}
+        </button>
         <button className="memory-entry" type="button" onClick={onOpenMemory}>
           <Sparkles size={17} />
           项目记忆

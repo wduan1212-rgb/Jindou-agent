@@ -5,7 +5,7 @@ import type { PromptSegment, ReferenceAsset, ShotMode } from "../types/chat";
 import type { ProjectMemory } from "../types/memory";
 import { loadApiSettings } from "./storage";
 
-interface ChatCompletionMessage {
+export interface ChatCompletionMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
@@ -35,6 +35,10 @@ export async function getLocalLlmConfig(): Promise<{
   } catch {
     return null;
   }
+}
+
+export async function chat(messages: ChatCompletionMessage[]): Promise<string | null> {
+  return callChatCompletion(messages, null);
 }
 
 export async function requestPromptFromLlm(args: {
@@ -82,18 +86,32 @@ export async function requestPromptFromLlm(args: {
   };
 }
 
-async function callChatCompletion(messages: ChatCompletionMessage[]): Promise<string | null> {
+async function callChatCompletion(
+  messages: ChatCompletionMessage[],
+  responseFormat: { type: "json_object" } | null = { type: "json_object" }
+): Promise<string | null> {
   const settings = loadApiSettings();
-  const body = {
+  const runsInBrowser = typeof window !== "undefined" && typeof window.location !== "undefined";
+  const body: {
+    model: string;
+    messages: ChatCompletionMessage[];
+    temperature: number;
+    baseURL?: string;
+    response_format?: { type: "json_object" };
+  } = {
+    baseURL: settings.llmBaseUrl,
     model: settings.llmModel,
     messages,
-    temperature: 0.72,
-    response_format: { type: "json_object" }
+    temperature: 0.72
   };
 
-  const endpoint = settings.llmApiKey
-    ? `${settings.llmBaseUrl.replace(/\/+$/, "")}/chat/completions`
-    : "/api/llm/chat";
+  if (runsInBrowser) {
+    body.baseURL = settings.llmBaseUrl;
+  }
+
+  if (responseFormat) {
+    body.response_format = responseFormat;
+  }
 
   const headers: Record<string, string> = {
     "content-type": "application/json"
@@ -102,6 +120,10 @@ async function callChatCompletion(messages: ChatCompletionMessage[]): Promise<st
   if (settings.llmApiKey) {
     headers.authorization = `Bearer ${settings.llmApiKey}`;
   }
+
+  const endpoint = runsInBrowser
+    ? "/api/llm/chat"
+    : `${settings.llmBaseUrl.replace(/\/+$/, "")}/chat/completions`;
 
   const response = await fetch(endpoint, {
     method: "POST",

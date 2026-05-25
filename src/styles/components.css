@@ -495,10 +495,62 @@
   padding: 16px 20px 20px;
 }
 
+.optimize-modal {
+  width: min(620px, 100%);
+}
+
+.optimize-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 20px;
+}
+
+.optimize-options button {
+  display: grid;
+  min-height: 86px;
+  place-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.optimize-options button:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.custom-optimize {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding: 18px 20px 20px;
+}
+
+.custom-optimize label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.custom-optimize textarea {
+  min-height: 100px;
+  resize: vertical;
+  border-radius: 8px;
+  padding: 12px;
+  line-height: 1.6;
+}
+
 @media (max-width: 720px) {
   .prompt-card-header,
   .memory-grid,
-  .memory-input {
+  .memory-input,
+  .optimize-options {
     grid-template-columns: 1fr;
   }
 

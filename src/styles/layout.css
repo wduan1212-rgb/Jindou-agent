@@ -217,6 +217,11 @@
   cursor: pointer;
 }
 
+.memory-entry:disabled {
+  cursor: progress;
+  opacity: 0.68;
+}
+
 .memory-entry:hover {
   color: var(--violet);
   border-color: rgba(143, 114, 216, 0.5);

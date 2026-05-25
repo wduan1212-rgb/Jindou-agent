@@ -75,14 +75,16 @@ function composeMultiShotPrompt(
   segment: DurationSegment
 ): string {
   const styleRule = buildStyleRule(analysis, memory);
-  const voiceRule = buildVoiceRule(analysis, memory);
+  const soundRule = buildSoundRule();
+  const speechDirection = buildSpeechDirection(analysis, memory);
   const continuityRule = buildContinuityRule(analysis);
   const shots = buildShotIntervals(segment.duration);
   const shotDescriptions = shots
     .map((shot) => {
       const scene = pickScene(analysis.originalText, segment.index, shot.index);
       const camera = pickCamera(shot.index);
-      return `镜头 ${shot.index}（${shot.timeRange}）：${camera}，${scene}`;
+      const speech = speechDirection ? `；${speechDirection}` : "";
+      return `${shot.timeRange}：${camera}，${scene}${speech}`;
     })
     .join("\n");
 
@@ -90,8 +92,8 @@ function composeMultiShotPrompt(
     `9:16 竖屏，${analysis.videoType}，${segment.duration} 秒，多镜头剪辑。`,
     `整体风格：${styleRule}`,
     `一致性规则：${continuityRule}`,
-    `声音规则：${voiceRule}`,
     shotDescriptions,
+    `声音：${soundRule}`,
     `负面约束：${NEGATIVE_RULES.join("；")}。`
   ].join("\n");
 }
@@ -101,16 +103,18 @@ function composeSingleShotPrompt(
   segment: DurationSegment
 ): string {
   const styleRule = buildStyleRule(analysis, memory);
-  const voiceRule = buildVoiceRule(analysis, memory);
+  const soundRule = buildSoundRule();
+  const speechDirection = buildSpeechDirection(analysis, memory);
   const continuityRule = buildContinuityRule(analysis);
   const continuousAction = pickContinuousAction(analysis.originalText);
+  const speech = speechDirection ? ` ${speechDirection}` : "";
 
   return [
     `9:16 竖屏，${segment.duration} 秒，单镜头一镜到底。`,
     `画面风格：${styleRule}`,
     `一致性规则：${continuityRule}`,
-    `连续镜头描述：开场为中景，镜头以轻微手持感停在主体前方。${continuousAction} 镜头缓慢推进到手部动作和人物表情，主体在同一空间内完成动作变化，结尾停留在人物自然反应与核心道具同框画面。`,
-    `声音规则：${voiceRule}`,
+    `0-${segment.duration} 秒：开场为中景，镜头以轻微手持感停在主体前方。${continuousAction} 镜头缓慢推进到手部动作和人物表情，主体在同一空间内完成动作变化，结尾停留在人物自然反应与核心道具同框画面。${speech}`,
+    `声音：${soundRule}`,
     `负面约束：${NEGATIVE_RULES.join("；")}。`
   ].join("\n");
 }
@@ -122,9 +126,10 @@ function composeTimelinePrompt(
 ): string {
   const opening = extractOpeningBrief(analysis.originalText) || buildOpeningSpec(analysis);
   const styleRule = buildStyleRule(analysis, memory);
-  const voiceRule = buildVoiceRule(analysis, memory);
+  const soundRule = buildSoundRule();
+  const speechDirection = buildSpeechDirection(analysis, memory);
   const continuityRule = buildContinuityRule(analysis);
-  const shotLines = items.map((item) => formatTimelineItem(item)).join("\n\n");
+  const shotLines = items.map((item) => formatTimelineItem(item, speechDirection)).join("\n\n");
   const overall = extractOverallRequirements(analysis.originalText);
 
   return [
@@ -132,8 +137,8 @@ function composeTimelinePrompt(
     `本段为 ${segment.timeRange}，多镜头剪辑。`,
     `整体风格：${styleRule}`,
     `角色与画面一致性：${continuityRule}`,
-    `声音：${voiceRule}`,
     shotLines,
+    `声音：${soundRule}`,
     overall ? `整体要求：${overall}` : "",
     `负面约束：${NEGATIVE_RULES.join("；")}。`
   ]
@@ -163,13 +168,26 @@ function buildOpeningSpec(analysis: CreativeAnalysis): string {
   return `9:16 竖屏，${analysis.videoType}`;
 }
 
-function formatTimelineItem(item: TimelineItem): string {
-  const heading = item.heading ? `｜${item.heading}` : "";
+function formatTimelineItem(item: TimelineItem, speechDirection: string): string {
+  const heading = cleanTimelineHeading(item.heading);
+  const headingSuffix = heading ? `｜${heading}` : "";
   const body = item.body
     .replace(/\s+/g, " ")
     .replace(/APP/g, "App")
     .trim();
-  return `${item.start}-${item.end}s${heading}\n${body}`;
+  const speech = speechDirection ? `\n${speechDirection}` : "";
+  return `${item.start}-${item.end}s${headingSuffix}\n${body}${speech}`;
+}
+
+function cleanTimelineHeading(heading: string): string {
+  const cleanHeading = heading.trim();
+  if (!cleanHeading) return "";
+
+  const withoutShotPrefix = cleanHeading
+    .replace(/^镜头\s*\d+\s*(?:[（(][^）)]*[）)])?\s*[：:｜|\-—]?\s*/, "")
+    .trim();
+
+  return withoutShotPrefix === cleanHeading && /^镜头\s*\d+\s*$/.test(cleanHeading) ? "" : withoutShotPrefix;
 }
 
 function extractOverallRequirements(text: string): string {
@@ -187,28 +205,34 @@ function buildStyleRule(analysis: CreativeAnalysis, memory: ProjectMemory): stri
     STYLE_PRESETS.find((item) => item.id === "real-vlog") ||
     STYLE_PRESETS[0];
   const memoryStyle = memory.stylePreferences.slice(0, 2).join("，");
-  return `${preset.prompt} 项目偏好：${memoryStyle}。`;
+  return memoryStyle ? `${preset.prompt} 视觉和表演保持${memoryStyle}。` : preset.prompt;
 }
 
-function buildVoiceRule(analysis: CreativeAnalysis, memory: ProjectMemory): string {
+function buildSoundRule(): string {
+  return "低音量背景音乐铺底，保留真实环境声、脚步声、道具触碰声和衣料摩擦声，动作声与画面同步。";
+}
+
+function buildSpeechDirection(analysis: CreativeAnalysis, memory: ProjectMemory): string {
   const preference = memory.voicePreferences[0] || "语速适中，语气自然";
+  const language = analysis.voiceLanguage === "未指定" ? "中文" : analysis.voiceLanguage;
 
   if (analysis.voiceMode === "none") {
-    return "不需要口播，只保留环境声、动作声和低音量背景音乐，画面不生成字幕。";
+    return "口播/对白：无口播、无对白、无旁白。";
   }
 
   if (analysis.voiceMode === "voiceover") {
-    const language = analysis.voiceLanguage === "未指定" ? "中文" : analysis.voiceLanguage;
-    return `${language}画外音旁白，${preference}，旁白句子短，环境声压低但保留真实空间感，画面不生成字幕。`;
+    return `旁白：${language}画外音旁白，${preference}，旁白句子短，贴合此时间段画面信息，画面不生成字幕。`;
   }
 
   if (analysis.voiceMode === "dialogue") {
-    const language = analysis.voiceLanguage === "未指定" ? "中文" : analysis.voiceLanguage;
-    return `${language}自然对白，人物说话与口型匹配，现场保留脚步声、道具声和环境声，画面不生成字幕。`;
+    return `对白：${language}自然对白，台词贴合此时间段画面动作，人物说话与口型匹配，画面不生成字幕。`;
   }
 
-  const language = analysis.voiceLanguage === "未指定" ? "中文" : analysis.voiceLanguage;
-  return `${language}角色面对镜头口播，${preference}，口播停顿自然，环境声轻微保留，画面不生成字幕。`;
+  if (analysis.voiceMode === "host") {
+    return `口播：${language}角色面对镜头口播，${preference}，台词短，停顿自然，口型与说话同步，画面不生成字幕。`;
+  }
+
+  return "";
 }
 
 function buildContinuityRule(analysis: CreativeAnalysis): string {

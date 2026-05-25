@@ -1,5 +1,10 @@
 node_modules
 dist
+release
+*.dmg
+*.exe
+*.AppImage
+*.blockmap
 .DS_Store
 .env
 .env.local

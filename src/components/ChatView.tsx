@@ -2,7 +2,7 @@ import { Clapperboard, FileText, Mic2, Scissors, Sparkles, Wand2 } from "lucide-
 import { useEffect, useRef } from "react";
 import { InputBar } from "./InputBar";
 import { MessageBubble } from "./MessageBubble";
-import type { PromptSegment, ReferenceAsset } from "../types/chat";
+import type { PromptSegment } from "../types/chat";
 import type { Project } from "../types/project";
 
 interface ChatViewProps {
@@ -10,10 +10,7 @@ interface ChatViewProps {
   input: string;
   disabled?: boolean;
   onInputChange: (value: string) => void;
-  onReferencesChange: (references: ReferenceAsset[]) => void;
   onSend: (value: string) => void;
-  onOpenSettings: () => void;
-  onQuestionSubmit: (answer: string) => void;
   onOptimizePrompt: (prompt: PromptSegment) => void;
   onSavePromptMemory: (prompt: PromptSegment) => void;
   onGenerateVideo: (prompt: PromptSegment) => void;
@@ -33,10 +30,7 @@ export function ChatView({
   input,
   disabled,
   onInputChange,
-  onReferencesChange,
   onSend,
-  onOpenSettings,
-  onQuestionSubmit,
   onOptimizePrompt,
   onSavePromptMemory,
   onGenerateVideo
@@ -96,7 +90,6 @@ export function ChatView({
               <MessageBubble
                 key={message.id}
                 message={message}
-                onQuestionSubmit={onQuestionSubmit}
                 onOptimizePrompt={onOptimizePrompt}
                 onSavePromptMemory={onSavePromptMemory}
                 onGenerateVideo={onGenerateVideo}
@@ -118,13 +111,9 @@ export function ChatView({
 
       <InputBar
         value={input}
-        references={project.references}
         disabled={disabled}
         onChange={onInputChange}
-        onReferencesChange={onReferencesChange}
         onSend={onSend}
-        onOpenSettings={onOpenSettings}
-        onTemplateClick={onInputChange}
       />
       <div className="content-note">内容由 AI 生成，请自行核查与使用</div>
     </main>

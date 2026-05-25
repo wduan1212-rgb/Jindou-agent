@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { runAgentTurn } from "./agent/conversationOrchestrator";
 import { ApiSettingsModal } from "./components/ApiSettingsModal";
 import { ChatView } from "./components/ChatView";
+import { OptimizePromptModal } from "./components/OptimizePromptModal";
 import { ProjectMemoryPanel } from "./components/ProjectMemoryPanel";
 import { Sidebar } from "./components/Sidebar";
+import { checkLatestVersion } from "./services/updateService";
 import {
   createInitialProject,
   createMessage,
@@ -14,7 +16,7 @@ import {
   saveActiveProjectId,
   saveProjects
 } from "./services/storage";
-import type { MemoryCategory, PromptSegment, ReferenceAsset } from "./types/chat";
+import type { MemoryCategory, PromptSegment } from "./types/chat";
 import type { Project } from "./types/project";
 
 export default function App() {
@@ -24,6 +26,8 @@ export default function App() {
   const [isThinking, setIsThinking] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [optimizingPrompt, setOptimizingPrompt] = useState<PromptSegment | null>(null);
 
   const activeProject = useMemo(() => {
     return projects.find((project) => project.id === activeProjectId) || projects[0];
@@ -112,17 +116,23 @@ export default function App() {
     setIsThinking(false);
   }
 
-  function handleReferencesChange(references: ReferenceAsset[]) {
-    if (!activeProject) return;
-    updateProject(activeProject.id, (project) => ({
-      ...project,
-      references,
-      updatedAt: nowIso()
-    }));
+  function handleOptimizePrompt(prompt: PromptSegment) {
+    setOptimizingPrompt(prompt);
   }
 
-  function handleOptimizePrompt(prompt: PromptSegment) {
-    handleSend(`请继续优化这条提示词，让镜头动作更具体，画面更稳定：\n${prompt.prompt}`);
+  function submitOptimizePrompt(direction: string) {
+    if (!optimizingPrompt) return;
+    handleSend(
+      [
+        "请基于下面这条视频提示词继续优化。",
+        `优化方向：${direction}`,
+        "你可以直接优化，也可以先反问一个关键问题。请保持导演视角和视频生成可执行性。",
+        "<PROMPT_CARD>",
+        optimizingPrompt.prompt,
+        "</PROMPT_CARD>"
+      ].join("\n")
+    );
+    setOptimizingPrompt(null);
   }
 
   function handleSavePromptMemory(prompt: PromptSegment) {
@@ -202,6 +212,30 @@ export default function App() {
     }));
   }
 
+  async function handleCheckUpdates() {
+    if (isCheckingUpdate) return;
+    setIsCheckingUpdate(true);
+
+    try {
+      const result = await checkLatestVersion(__APP_VERSION__);
+      if (result.hasUpdate) {
+        const openRelease = window.confirm(
+          `发现新版本 v${result.latestVersion}。\n当前版本 v${result.currentVersion}。\n要打开下载页面吗？`
+        );
+        if (openRelease) window.open(result.releaseUrl, "_blank", "noopener,noreferrer");
+      } else {
+        window.alert(`当前已经是最新版本：v${result.currentVersion}`);
+      }
+    } catch (error) {
+      const openRelease = window.confirm(
+        `${error instanceof Error ? error.message : "检查更新失败。"}\n要直接打开下载页面吗？`
+      );
+      if (openRelease) window.open("https://github.com/wduan1212-rgb/Jindou-agent/releases/latest", "_blank", "noopener,noreferrer");
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  }
+
   if (!activeProject) return null;
 
   return (
@@ -215,6 +249,8 @@ export default function App() {
         onDeleteProject={handleDeleteProject}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenMemory={() => setMemoryOpen(true)}
+        onCheckUpdates={handleCheckUpdates}
+        isCheckingUpdate={isCheckingUpdate}
       />
 
       <ChatView
@@ -222,16 +258,20 @@ export default function App() {
         input={input}
         disabled={isThinking}
         onInputChange={setInput}
-        onReferencesChange={handleReferencesChange}
         onSend={handleSend}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onQuestionSubmit={handleSend}
         onOptimizePrompt={handleOptimizePrompt}
         onSavePromptMemory={handleSavePromptMemory}
         onGenerateVideo={handleGenerateVideo}
       />
 
       {settingsOpen && <ApiSettingsModal onClose={() => setSettingsOpen(false)} />}
+      {optimizingPrompt && (
+        <OptimizePromptModal
+          prompt={optimizingPrompt}
+          onClose={() => setOptimizingPrompt(null)}
+          onSubmit={submitOptimizePrompt}
+        />
+      )}
       {memoryOpen && (
         <ProjectMemoryPanel
           memory={activeProject.memory}
