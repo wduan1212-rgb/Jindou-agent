@@ -5,7 +5,8 @@ import { DEFAULT_LLM_BASE_URL, DEFAULT_LLM_MODEL } from "../data/modelRules";
 
 const PROJECTS_KEY = "jindou.projects.v1";
 const ACTIVE_PROJECT_KEY = "jindou.activeProjectId.v1";
-const API_SETTINGS_KEY = "jindou.apiSettings.session.v1";
+const API_SETTINGS_KEY = "jindou.apiSettings.v1";
+const LEGACY_SESSION_API_SETTINGS_KEY = "jindou.apiSettings.session.v1";
 
 export function createId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36)}`;
@@ -72,19 +73,24 @@ export function loadApiSettings(): ApiSettings {
   };
 
   try {
-    const raw = sessionStorage.getItem(API_SETTINGS_KEY);
+    const raw = localStorage.getItem(API_SETTINGS_KEY) || sessionStorage.getItem(LEGACY_SESSION_API_SETTINGS_KEY);
     if (!raw) return fallback;
-    return { ...fallback, ...(JSON.parse(raw) as Partial<ApiSettings>) };
+    const settings = { ...fallback, ...(JSON.parse(raw) as Partial<ApiSettings>) };
+    if (!localStorage.getItem(API_SETTINGS_KEY)) {
+      localStorage.setItem(API_SETTINGS_KEY, JSON.stringify(settings));
+    }
+    return settings;
   } catch {
     return fallback;
   }
 }
 
 export function saveApiSettings(settings: ApiSettings): void {
-  sessionStorage.setItem(API_SETTINGS_KEY, JSON.stringify(settings));
+  localStorage.setItem(API_SETTINGS_KEY, JSON.stringify(settings));
+  sessionStorage.removeItem(LEGACY_SESSION_API_SETTINGS_KEY);
 }
 
-export function clearSessionApiKey(): void {
+export function clearSavedApiKey(): void {
   const settings = loadApiSettings();
   saveApiSettings({ ...settings, llmApiKey: "", videoApiKey: "" });
 }

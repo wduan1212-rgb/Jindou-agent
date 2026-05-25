@@ -8,6 +8,9 @@ const distDir = path.join(root, "dist");
 const iconPath = process.platform === "win32"
   ? path.join(root, "build", "icon.ico")
   : path.join(root, "build", "icon.png");
+const stableUserDataDir = path.join(app.getPath("appData"), "Jindou Agent");
+
+app.setPath("userData", stableUserDataDir);
 
 let server = null;
 let serverUrl = "";

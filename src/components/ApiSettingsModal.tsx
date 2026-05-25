@@ -1,7 +1,7 @@
 import { CheckCircle2, KeyRound, Server, Video, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getLocalLlmConfig } from "../services/llmClient";
-import { clearSessionApiKey, loadApiSettings, saveApiSettings } from "../services/storage";
+import { clearSavedApiKey, loadApiSettings, saveApiSettings } from "../services/storage";
 import type { ApiSettings } from "../types/chat";
 
 interface ApiSettingsModalProps {
@@ -30,7 +30,7 @@ export function ApiSettingsModal({ onClose }: ApiSettingsModalProps) {
   }
 
   function clearKeys() {
-    clearSessionApiKey();
+    clearSavedApiKey();
     setSettings(loadApiSettings());
   }
 
@@ -58,7 +58,7 @@ export function ApiSettingsModal({ onClose }: ApiSettingsModalProps) {
           {localConfig?.hasKey && (
             <div className="config-status">
               <CheckCircle2 size={16} />
-              已有本地默认 key。粘贴新 key 会临时覆盖它。
+              已有本地默认 key。粘贴新 key 会覆盖并记住它。
             </div>
           )}
           <label>
@@ -72,7 +72,7 @@ export function ApiSettingsModal({ onClose }: ApiSettingsModalProps) {
               placeholder={localConfig?.hasKey ? "已使用本地默认 key；粘贴后覆盖" : "sk-..."}
             />
           </label>
-          <p className="settings-help">只在当前浏览器会话保存，刷新后仍可使用；不在界面显示明文。</p>
+          <p className="settings-help">会固定保存在这台电脑里，退出应用后仍可使用；输入框不显示明文。</p>
         </section>
 
         <section className="settings-section muted-section">
@@ -96,7 +96,7 @@ export function ApiSettingsModal({ onClose }: ApiSettingsModalProps) {
 
         <footer className="modal-actions">
           <button className="soft-button" type="button" onClick={clearKeys}>
-            清除会话 Key
+            清除已保存 Key
           </button>
           <button className="soft-button" type="button" onClick={onClose}>
             取消
