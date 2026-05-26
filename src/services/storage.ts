@@ -7,6 +7,7 @@ const PROJECTS_KEY = "jindou.projects.v1";
 const ACTIVE_PROJECT_KEY = "jindou.activeProjectId.v1";
 const API_SETTINGS_KEY = "jindou.apiSettings.v1";
 const LEGACY_SESSION_API_SETTINGS_KEY = "jindou.apiSettings.session.v1";
+const MAX_STORAGE_BYTES = 8 * 1024 * 1024; // 8MB safety threshold
 
 export function createId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36)}`;
@@ -43,15 +44,109 @@ export function loadProjects(): Project[] {
   try {
     const raw = localStorage.getItem(PROJECTS_KEY);
     if (!raw) return [createInitialProject()];
-    const parsed = JSON.parse(raw) as Project[];
-    return parsed.length > 0 ? parsed : [createInitialProject()];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return [createInitialProject()];
+    return parsed.map(migrateProject);
   } catch {
     return [createInitialProject()];
   }
 }
 
 export function saveProjects(projects: Project[]): void {
-  localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+  try {
+    const json = JSON.stringify(projects);
+    if (json.length > MAX_STORAGE_BYTES) {
+      const compacted = compactProjectsForStorage(projects);
+      const compactedJson = JSON.stringify(compacted);
+      if (compactedJson.length <= MAX_STORAGE_BYTES) {
+        localStorage.setItem(PROJECTS_KEY, compactedJson);
+      } else {
+        tryFallbackSave(compacted);
+      }
+    } else {
+      localStorage.setItem(PROJECTS_KEY, json);
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "QuotaExceededError") {
+      tryFallbackSave(projects);
+    }
+  }
+}
+
+function tryFallbackSave(projects: Project[]): void {
+  const minimal = projects.slice(0, Math.max(1, projects.length - 3)).map((project) => ({
+    ...project,
+    messages: project.messages.slice(-20).map((message) => ({
+      ...message,
+      prompts: message.prompts?.map((prompt) => ({
+        ...prompt,
+        prompt: prompt.prompt.length > 300 ? prompt.prompt.slice(0, 300) + "…" : prompt.prompt
+      }))
+    })),
+    references: []
+  }));
+  try {
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(minimal));
+  } catch {
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify([createInitialProject()]));
+  }
+}
+
+function compactProjectsForStorage(projects: Project[]): Project[] {
+  return projects.map((project) => ({
+    ...project,
+    messages: project.messages.map((message) => ({
+      ...message,
+      prompts: message.prompts?.map((prompt) => ({
+        ...prompt,
+        prompt: prompt.prompt.length > 600 ? prompt.prompt.slice(0, 600) + "…" : prompt.prompt
+      }))
+    }))
+  }));
+}
+
+function migrateProject(raw: Record<string, unknown>): Project {
+  const now = nowIso();
+  return {
+    id: String(raw.id || createId("project")),
+    title: String(raw.title || "新的创作"),
+    status: raw.status === "draft" ? "draft" : "active",
+    tag: String(raw.tag || ""),
+    createdAt: String(raw.createdAt || now),
+    updatedAt: String(raw.updatedAt || now),
+    messages: Array.isArray(raw.messages)
+      ? raw.messages.map((message: Record<string, unknown>) => ({
+          id: String(message.id || createId("msg")),
+          role: message.role === "assistant" ? "assistant" : "user",
+          kind: ["text", "questions", "prompts", "notice"].includes(String(message.kind))
+            ? (String(message.kind) as ChatMessage["kind"])
+            : "text",
+          content: typeof message.content === "string" ? message.content : "",
+          questions: Array.isArray(message.questions) ? message.questions as ChatMessage["questions"] : undefined,
+          prompts: Array.isArray(message.prompts) ? message.prompts as ChatMessage["prompts"] : undefined,
+          createdAt: String(message.createdAt || now)
+        }))
+      : [],
+    references: Array.isArray(raw.references) ? raw.references as Project["references"] : [],
+    memory: raw.memory && typeof raw.memory === "object"
+      ? {
+          defaultModel: String((raw.memory as Record<string, unknown>).defaultModel || "Seedance"),
+          defaultShotMode: (raw.memory as Record<string, unknown>).defaultShotMode === "single" ? "single" : "multi",
+          stylePreferences: Array.isArray((raw.memory as Record<string, unknown>).stylePreferences)
+            ? (raw.memory as Record<string, unknown>).stylePreferences as string[]
+            : [],
+          voicePreferences: Array.isArray((raw.memory as Record<string, unknown>).voicePreferences)
+            ? (raw.memory as Record<string, unknown>).voicePreferences as string[]
+            : [],
+          negativeRules: Array.isArray((raw.memory as Record<string, unknown>).negativeRules)
+            ? (raw.memory as Record<string, unknown>).negativeRules as string[]
+            : [],
+          notes: Array.isArray((raw.memory as Record<string, unknown>).notes)
+            ? (raw.memory as Record<string, unknown>).notes as string[]
+            : []
+        }
+      : createDefaultMemory()
+  };
 }
 
 export function loadActiveProjectId(): string | null {

@@ -1,4 +1,5 @@
 import { Clock3, Download, MessageSquareText, Pencil, Plus, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import type { Project } from "../types/project";
 
 interface SidebarProps {
@@ -26,13 +27,21 @@ export function Sidebar({
   onCheckUpdates,
   isCheckingUpdate
 }: SidebarProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredProjects = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return projects;
+    return projects.filter((project) => project.title.toLowerCase().includes(query));
+  }, [projects, searchQuery]);
+
   function rename(project: Project) {
     const nextTitle = window.prompt("编辑会话名称", project.title)?.trim();
     if (nextTitle) onRenameProject(project.id, nextTitle);
   }
 
   function remove(project: Project) {
-    if (!window.confirm(`删除会话“${project.title}”？`)) return;
+    if (!window.confirm(`删除会话"${project.title}"？`)) return;
     onDeleteProject(project.id);
   }
 
@@ -53,7 +62,11 @@ export function Sidebar({
 
       <label className="search-box">
         <Search size={16} />
-        <input placeholder="搜索项目" />
+        <input
+          placeholder="搜索项目"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+        />
       </label>
 
       <div className="sidebar-section-title">
@@ -62,7 +75,7 @@ export function Sidebar({
       </div>
 
       <div className="project-list">
-        {projects.map((project) => (
+        {filteredProjects.map((project) => (
           <div
             key={project.id}
             className={`project-item ${project.id === activeProjectId ? "active" : ""}`}
@@ -84,6 +97,9 @@ export function Sidebar({
             </span>
           </div>
         ))}
+        {filteredProjects.length === 0 && searchQuery.trim() && (
+          <div className="empty-search">没有找到匹配的项目</div>
+        )}
       </div>
 
       <div className="sidebar-bottom">

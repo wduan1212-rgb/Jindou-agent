@@ -23,6 +23,30 @@ interface LlmPromptResponse {
   }>;
 }
 
+export class LlmError extends Error {
+  code: "auth" | "network" | "server" | "timeout";
+  status?: number;
+  constructor(message: string, code: LlmError["code"], status?: number) {
+    super(message);
+    this.name = "LlmError";
+    this.code = code;
+    this.status = status;
+  }
+
+  toUserMessage(): string {
+    switch (this.code) {
+      case "auth":
+        return "API Key 无效或已过期，请在 API 设置中更新。";
+      case "network":
+        return "网络连接失败，请检查网络后重试。";
+      case "server":
+        return `模型服务暂时不可用（${this.status || "未知"}），请稍后重试。`;
+      case "timeout":
+        return "请求超时，模型响应时间过长，请稍后重试。";
+    }
+  }
+}
+
 export async function getLocalLlmConfig(): Promise<{
   hasKey: boolean;
   baseURL: string;
@@ -37,8 +61,20 @@ export async function getLocalLlmConfig(): Promise<{
   }
 }
 
-export async function chat(messages: ChatCompletionMessage[]): Promise<string | null> {
-  return callChatCompletion(messages, null);
+/** 带重试的聊天请求。失败时重试一次，两次都失败则抛出 LlmError。 */
+export async function chat(messages: ChatCompletionMessage[]): Promise<string> {
+  let lastError: LlmError | null = null;
+  for (let attempt = 0; attempt <= 1; attempt += 1) {
+    try {
+      const result = await callChatCompletion(messages, null);
+      if (result) return result;
+    } catch (error) {
+      lastError = error instanceof LlmError ? error : new LlmError("未知错误", "network");
+      if (lastError.code === "auth") break;
+    }
+  }
+  if (lastError) throw lastError;
+  return "";
 }
 
 export async function requestPromptFromLlm(args: {
@@ -88,7 +124,8 @@ export async function requestPromptFromLlm(args: {
 
 async function callChatCompletion(
   messages: ChatCompletionMessage[],
-  responseFormat: { type: "json_object" } | null = { type: "json_object" }
+  responseFormat: { type: "json_object" } | null = { type: "json_object" },
+  timeoutMs = 45000
 ): Promise<string | null> {
   const settings = loadApiSettings();
   const runsInBrowser = typeof window !== "undefined" && typeof window.location !== "undefined";
@@ -125,13 +162,37 @@ async function callChatCompletion(
     ? "/api/llm/chat"
     : `${settings.llmBaseUrl.replace(/\/+$/, "")}/chat/completions`;
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body)
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!response.ok) return null;
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+  } catch (error) {
+    clearTimeout(timer);
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new LlmError("请求超时", "timeout");
+    }
+    throw new LlmError("网络连接失败", "network");
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new LlmError("API Key 无效", "auth", response.status);
+    }
+    if (response.status === 429 || response.status >= 500) {
+      throw new LlmError("模型服务暂不可用", "server", response.status);
+    }
+    throw new LlmError("请求失败", "server", response.status);
+  }
+
   const data = await response.json();
   return data?.choices?.[0]?.message?.content || null;
 }

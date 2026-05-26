@@ -3,7 +3,7 @@ export const STYLE_PRESETS = [
     id: "real-vlog",
     label: "真实自然",
     prompt:
-      "真实 iPhone 手持拍摄质感，自然光，生活化表演，环境细节干净，人物动作保留轻微不完美。"
+      "真实手机手持拍摄质感，自然光，生活化表演，环境细节干净，人物动作保留轻微不完美。"
   },
   {
     id: "cinematic",

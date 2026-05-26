@@ -6,7 +6,8 @@ export const NEGATIVE_RULES = [
   "避免虚焦、低清晰度、画面脏污、色彩断层"
 ];
 
-export const BANNED_PROMPT_PHRASES = [
+/** 硬禁词：必须删除。跨段依赖、后期引用、系统规则泄漏、无法执行的抽象广告腔。 */
+export const HARD_BANS = [
   "与上一段保持一致",
   "与上一段一致",
   "延续前一段",
@@ -27,25 +28,28 @@ export const BANNED_PROMPT_PHRASES = [
   "后期加入",
   "后期可以添加文字",
   "后期手动加",
-  "后期",
   "这里可以放 logo",
-  "根据需要调整",
-  "根据需要",
-  "可选择",
-  "可选",
-  "或者",
-  "类似",
-  "参考一下",
-  "大概",
-  "尽量",
-  "最好",
+  "参考图规则",
+  "Seedance",
   "突出卖点",
   "强化氛围",
   "体现高级感",
   "有钩子",
   "有冲突",
   "带节奏",
-  "有广告感",
-  "参考图规则",
-  "Seedance"
+  "有广告感"
+];
+
+/** 软建议：不删除，仅标记到 qualityTags 提醒用户。常用词和轻量模糊词。 */
+export const SOFT_SUGGESTIONS = [
+  { phrase: "根据需要调整", hint: "含模糊措辞" },
+  { phrase: "根据需要", hint: "含模糊措辞" },
+  { phrase: "可选择", hint: "含模糊措辞" },
+  { phrase: "可选", hint: "含模糊措辞" },
+  { phrase: "或者", hint: "含选择分支" },
+  { phrase: "类似", hint: "含模糊比较" },
+  { phrase: "参考一下", hint: "含模糊参考" },
+  { phrase: "大概", hint: "含不确定表述" },
+  { phrase: "尽量", hint: "含弱约束" },
+  { phrase: "最好", hint: "含弱约束" }
 ];

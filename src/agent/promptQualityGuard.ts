@@ -1,4 +1,4 @@
-import { BANNED_PROMPT_PHRASES } from "../data/negativeRules";
+import { HARD_BANS, SOFT_SUGGESTIONS } from "../data/negativeRules";
 
 export interface QualityReport {
   cleanPrompt: string;
@@ -19,16 +19,23 @@ const NEGATIVE_CONSTRAINT_PATTERN = /(?:不生成字幕|不出现|避免|不要|
 export function guardPromptText(prompt: string): QualityReport {
   let cleanPrompt = prompt
     .replace(/<\/?PROMPT_CARD>/gi, "")
-    .replace(/\b(?:iPhone|Apple)\b/gi, "手机")
+    .replace(/\b(?:iPhone|Apple|Samsung|Huawei|小米|OPPO|vivo|Pixel)\b/gi, "手机")
     .replace(/不要后期感/g, "保持实拍自然质感")
     .replace(/后期手动加(?:品牌)?Logo/g, "保持干净收束画面")
     .replace(/后期(?:手动)?添加的?/g, "");
   const removedPhrases: string[] = [];
 
-  for (const phrase of BANNED_PROMPT_PHRASES) {
+  for (const phrase of HARD_BANS) {
     if (cleanPrompt.includes(phrase)) {
       cleanPrompt = cleanPrompt.split(phrase).join("");
       removedPhrases.push(phrase);
+    }
+  }
+
+  const softFlags: string[] = [];
+  for (const { phrase, hint } of SOFT_SUGGESTIONS) {
+    if (cleanPrompt.includes(phrase)) {
+      softFlags.push(hint);
     }
   }
 
@@ -66,7 +73,12 @@ export function guardPromptText(prompt: string): QualityReport {
   }
 
   const tags: string[] = [];
-  if (removedPhrases.length === 0) tags.unshift("通过禁用词检查");
+  if (removedPhrases.length === 0 && softFlags.length === 0) tags.unshift("通过全部检查");
+  if (removedPhrases.length > 0) tags.push(`已清理 ${removedPhrases.length} 项`);
+  if (softFlags.length > 0) {
+    const uniqueFlags = Array.from(new Set(softFlags));
+    tags.push(...uniqueFlags.slice(0, 2).map((flag) => `建议：${flag}`));
+  }
   if (DURATION_PATTERN.test(cleanPrompt)) tags.push("含时长");
   if (SHOT_STRUCTURE_PATTERN.test(cleanPrompt)) tags.push("含镜头结构");
   if (SOUND_RULE_PATTERN.test(cleanPrompt)) tags.push("含声音规则");

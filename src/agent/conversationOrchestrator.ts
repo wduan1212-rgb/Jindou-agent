@@ -3,7 +3,7 @@ import { finalizePromptTexts, type FinalizedPromptText } from "./promptFinalizer
 import { guardPromptText } from "./promptQualityGuard";
 import { JINDOU_SYSTEM_PROMPT } from "./systemPrompt";
 import { parseDurationSeconds } from "./durationSplitter";
-import { chat, type ChatCompletionMessage } from "../services/llmClient";
+import { chat, LlmError, type ChatCompletionMessage } from "../services/llmClient";
 import { createId, createMessage } from "../services/storage";
 import type { ChatMessage, PromptSegment, ReferenceAsset, ShotMode } from "../types/chat";
 import type { ProjectMemory } from "../types/memory";
@@ -77,7 +77,21 @@ export async function runAgentTurn(args: AgentTurnArgs): Promise<AgentTurnResult
     memory: nextMemory,
     references: args.references
   });
-  let reply = await chat(llmMessages).catch(() => null);
+  let reply: string;
+  try {
+    reply = await chat(llmMessages);
+  } catch (error) {
+    return {
+      memory: nextMemory,
+      messages: [
+        createMessage({
+          role: "assistant",
+          kind: "notice",
+          content: error instanceof LlmError ? error.toUserMessage() : "请求失败，请检查 API 设置后重试。"
+        })
+      ]
+    };
+  }
 
   if (!reply?.trim()) {
     return {
@@ -215,23 +229,27 @@ async function requestPromptCardRepair(
   input: string,
   previousReply: string
 ): Promise<string | null> {
-  return chat([
-    ...llmMessages,
-    {
-      role: "assistant",
-      content: previousReply
-    },
-    {
-      role: "user",
-      content: [
-        "上一次回复没有生成可复制的 PROMPT_CARD，但当前用户信息已经足够。",
-        "请立刻生成最终视频提示词，不要继续反问，不要输出 JSON，不要写 Markdown 代码块。",
-        "硬性结构：每条最终提示词必须用 <PROMPT_CARD> 和 </PROMPT_CARD> 包裹；每条卡片不超过 15 秒；总时长小于等于 15 秒只生成一条；超过 15 秒按叙事自然拆段；如果后两段合计小于等于 15 秒必须合并。",
-        "内容标准：写具体角色形象锚点、场景环境、镜头/运镜、光线色调、动作节奏、声音；有口播/旁白/对白时，把用户给出的台词原样放进对应时间段，并写声线/语气；不要擅自新增台词；不要写 Seedance、参考图规则、根据需要、可选择、后期加入、同上、延续上一段。",
-        `用户当前输入：${input}`
-      ].join("\n")
-    }
-  ]);
+  try {
+    return await chat([
+      ...llmMessages,
+      {
+        role: "assistant",
+        content: previousReply
+      },
+      {
+        role: "user",
+        content: [
+          "上一次回复没有生成可复制的 PROMPT_CARD，但当前用户信息已经足够。",
+          "请立刻生成最终视频提示词，不要继续反问，不要输出 JSON，不要写 Markdown 代码块。",
+          "硬性结构：每条最终提示词必须用 <PROMPT_CARD> 和 </PROMPT_CARD> 包裹；每条卡片不超过 15 秒；总时长小于等于 15 秒只生成一条；超过 15 秒按叙事自然拆段；如果后两段合计小于等于 15 秒必须合并。",
+          "内容标准：写具体角色形象锚点、场景环境、镜头/运镜、光线色调、动作节奏、声音；有口播/旁白/对白时，把用户给出的台词原样放进对应时间段，并写声线/语气；不要擅自新增台词；不要写 Seedance、参考图规则、根据需要、可选择、后期加入、同上、延续上一段。",
+          `用户当前输入：${input}`
+        ].join("\n")
+      }
+    ]);
+  } catch {
+    return null;
+  }
 }
 
 async function requestDurationCoverageRepair(
@@ -240,23 +258,27 @@ async function requestDurationCoverageRepair(
   previousReply: string,
   timing: { expectedDuration: number; coveredDuration: number }
 ): Promise<string | null> {
-  return chat([
-    ...llmMessages,
-    {
-      role: "assistant",
-      content: previousReply
-    },
-    {
-      role: "user",
-      content: [
-        `上一版提示词总覆盖约 ${timing.coveredDuration}s，但原始脚本需要完整覆盖约 ${timing.expectedDuration}s。`,
-        "请重写全部最终提示词，让所有卡片的总时长贴近原始脚本，不要压缩缩水，也不要额外扩写到更长。",
-        "每条 <PROMPT_CARD> 最多 15 秒；如果总时长超过 15 秒，请拆成多条并完整覆盖原始时间轴；后两段合计小于等于 15 秒时合并。",
-        "所有时间段在每条卡片内部从 0s 开始重新编号；口播/旁白/对白必须放进对应时间段，用户给过原文时必须原样保留且不要新增台词；不要写后期、同上、延续上一段、Seedance、参考图规则。",
-        `用户当前输入：${input}`
-      ].join("\n")
-    }
-  ]);
+  try {
+    return await chat([
+      ...llmMessages,
+      {
+        role: "assistant",
+        content: previousReply
+      },
+      {
+        role: "user",
+        content: [
+          `上一版提示词总覆盖约 ${timing.coveredDuration}s，但原始脚本需要完整覆盖约 ${timing.expectedDuration}s。`,
+          "请重写全部最终提示词，让所有卡片的总时长贴近原始脚本，不要压缩缩水，也不要额外扩写到更长。",
+          "每条 <PROMPT_CARD> 最多 15 秒；如果总时长超过 15 秒，请拆成多条并完整覆盖原始时间轴；后两段合计小于等于 15 秒时合并。",
+          "所有时间段在每条卡片内部从 0s 开始重新编号；口播/旁白/对白必须放进对应时间段，用户给过原文时必须原样保留且不要新增台词；不要写后期、同上、延续上一段、Seedance、参考图规则。",
+          `用户当前输入：${input}`
+        ].join("\n")
+      }
+    ]);
+  } catch {
+    return null;
+  }
 }
 
 async function requestSpeechFidelityRepair(
@@ -264,23 +286,27 @@ async function requestSpeechFidelityRepair(
   input: string,
   previousReply: string
 ): Promise<string | null> {
-  return chat([
-    ...llmMessages,
-    {
-      role: "assistant",
-      content: previousReply
-    },
-    {
-      role: "user",
-      content: [
-        "上一版提示词擅自新增或改写了用户给定的口播/台词。",
-        "请重写最终提示词：用户给过明确口播、旁白或对白原文时，必须原样保留这些文字；可以放进最匹配的时间段，但不要新增任何其他口播/旁白/对白。",
-        "没有口播的时间段只写环境音、动作音或BGM，不要写新的台词。",
-        "仍然保持每条 PROMPT_CARD 不超过15秒、画面具体、有导演镜头语言。",
-        `用户当前输入：${input}`
-      ].join("\n")
-    }
-  ]);
+  try {
+    return await chat([
+      ...llmMessages,
+      {
+        role: "assistant",
+        content: previousReply
+      },
+      {
+        role: "user",
+        content: [
+          "上一版提示词擅自新增或改写了用户给定的口播/台词。",
+          "请重写最终提示词：用户给过明确口播、旁白或对白原文时，必须原样保留这些文字；可以放进最匹配的时间段，但不要新增任何其他口播/旁白/对白。",
+          "没有口播的时间段只写环境音、动作音或BGM，不要写新的台词。",
+          "仍然保持每条 PROMPT_CARD 不超过15秒、画面具体、有导演镜头语言。",
+          `用户当前输入：${input}`
+        ].join("\n")
+      }
+    ]);
+  } catch {
+    return null;
+  }
 }
 
 function shouldForcePromptGeneration(input: string, messages: ChatMessage[]): boolean {
@@ -481,12 +507,16 @@ function hasCompleteVideoBrief(text: string): boolean {
   return hasDuration && hasVideoIntent && (hasVisualDirection || hasSoundDecision) && (hasSoundDecision || timelineCount >= 2);
 }
 
+const MAX_HISTORY_MESSAGES = 20;
+const MAX_PROMPT_CARD_CHARS = 400;
+
 function buildLlmMessages(
   messages: ChatMessage[],
   input: string,
   context: { memory: ProjectMemory; references: ReferenceAsset[] }
 ): ChatCompletionMessage[] {
-  const history = messages
+  const recentMessages = messages.slice(-MAX_HISTORY_MESSAGES);
+  const history = recentMessages
     .map((message): ChatCompletionMessage | null => {
       const content = serializeMessageForLlm(message);
       if (!content) return null;
@@ -508,6 +538,38 @@ function buildLlmMessages(
       content: [buildProjectContextForLlm(context.memory, context.references), `用户当前输入：${input}`].join("\n\n")
     }
   ];
+}
+
+function serializeMessageForLlm(message: ChatMessage): string {
+  const parts: string[] = [];
+
+  if (message.content?.trim()) {
+    parts.push(message.content.trim());
+  }
+
+  if (message.prompts?.length) {
+    parts.push(
+      ...message.prompts.map((prompt) => {
+        const compact = prompt.prompt.length > MAX_PROMPT_CARD_CHARS
+          ? prompt.prompt.slice(0, MAX_PROMPT_CARD_CHARS) + "…"
+          : prompt.prompt;
+        return [`<PROMPT_CARD>`, compact, `</PROMPT_CARD>`].join("\n");
+      })
+    );
+  }
+
+  if (message.questions?.length) {
+    parts.push(
+      message.questions
+        .map((question) => {
+          const options = question.options.map((option) => option.label).join(" / ");
+          return `问题：${question.prompt}${options ? `\n选项：${options}` : ""}`;
+        })
+        .join("\n\n")
+    );
+  }
+
+  return parts.join("\n\n").trim();
 }
 
 function buildProjectContextForLlm(memory: ProjectMemory, references: ReferenceAsset[]): string {
@@ -549,33 +611,6 @@ function formatReferenceKind(kind: ReferenceAsset["kind"]): string {
   };
 
   return labels[kind] || kind;
-}
-
-function serializeMessageForLlm(message: ChatMessage): string {
-  const parts: string[] = [];
-
-  if (message.content?.trim()) {
-    parts.push(message.content.trim());
-  }
-
-  if (message.prompts?.length) {
-    parts.push(
-      ...message.prompts.map((prompt) => [`<PROMPT_CARD>`, prompt.prompt, `</PROMPT_CARD>`].join("\n"))
-    );
-  }
-
-  if (message.questions?.length) {
-    parts.push(
-      message.questions
-        .map((question) => {
-          const options = question.options.map((option) => option.label).join(" / ");
-          return `问题：${question.prompt}${options ? `\n选项：${options}` : ""}`;
-        })
-        .join("\n\n")
-    );
-  }
-
-  return parts.join("\n\n").trim();
 }
 
 function extractPromptCards(text: string): PromptCardExtraction {

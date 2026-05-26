@@ -1,89 +1,49 @@
-# CHANGELOG.md
-
 ## 日期
 
-2026-05-25
+2026-05-26
 
 ## 执行 Agent
 
-Claude Code
+Claude Code（执行）+ Codex（审查）
 
 ## 本轮修改目标
 
-根据 Codex REVIEW.md 诊断，执行 #1~#5 修复项。
+v0.3.0 代码质量优化 —— Claude Code + Codex 双审查对齐后的 6 项 P1 优化
 
 ## 修改内容
 
-1. **修复验证脚本 API Key 读取** — `installNodeApiSettingsShim()` 同时 mock localStorage，解决 Node 环境因 localStorage 不存在导致 sessionStorage 配置被跳过的 bug；`loadApiSettings()` 在非浏览器环境回退到 `process.env`
-2. **标记旧链路为 legacy** — `questionPlanner.ts`、`promptComposer.ts` 添加 @legacy 注释；`referenceRules.ts` 添加未接入说明
-3. **修复视频 API 路由** — `/api/video/generate` 始终返回 501 + 明确提示；前端 `handleGenerateVideo` 统一展示"即将支持"通知
-4. **修复品牌提醒误触发 + handleSend 异常兜底** — 从 BRAND_KEYWORDS 移除 'logo'；`checkBrandKeywords` 跳过负面约束行；`handleSend()` 加 try/catch/finally 防止卡 thinking
-5. **修复 questions 渲染断链** — `MessageBubble` 新增 `kind === "questions"` 渲染 `QuestionOptions` 组件；`ChatView` 和 `App` 透传 `onQuestionSubmit`
+1. **修复 iPhone 品牌词泄漏** — `stylePresets.ts`、`memory.ts` 默认值中的 "iPhone" → "手机"；`promptQualityGuard.ts` 品牌替换扩展到 Samsung/Huawei/小米/OPPO/vivo/Pixel
+2. **重做提示词清洗规则** — `negativeRules.ts` 拆为 HARD_BANS（跨段依赖/后期引用/广告腔，直接删除）和 SOFT_SUGGESTIONS（模糊措辞/常用词，仅标记警告），避免暴力删除破坏语义
+3. **API 错误分类 + 重试** — `llmClient.ts` 新增 `LlmError` 类（auth/network/server/timeout），`chat()` 带 1 次重试和 45s 超时，认证错误不重试，用户看到中文错误提示
+4. **LLM 上下文裁剪** — `buildLlmMessages` 限制最近 20 条历史消息，`serializeMessageForLlm` 对超长 PROMPT_CARD 截断到 400 字符
+5. **localStorage 安全加固** — `storage.ts` 增加 `migrateProject` schema 兼容旧数据，8MB 阈值检查 + 逐级降级保存，QuotaExceededError 兜底
+6. **Sidebar 搜索实现** — `Sidebar.tsx` 增加 searchQuery 状态 + useMemo 过滤 + 空结果提示
 
 ## 修改文件
 
-- `scripts/agent-validation.ts` — mock localStorage + 扩展 shim
-- `scripts/agent-15s-check.ts` — mock localStorage + 扩展 shim
-- `src/services/storage.ts` — loadApiSettings 回退 process.env
-- `src/agent/questionPlanner.ts` — @legacy 注释
-- `src/agent/promptComposer.ts` — @legacy 注释
-- `src/agent/referenceRules.ts` — 未接入说明注释
-- `server/jindouServer.mjs` — 视频路由始终返回 501
-- `src/App.tsx` — handleGenerateVideo 统一文案 + handleSend try/catch
-- `src/agent/conversationOrchestrator.ts` — BRAND_KEYWORDS 移除 logo + checkBrandKeywords 跳过负面约束
-- `src/components/MessageBubble.tsx` — 新增 questions 渲染
-- `src/components/ChatView.tsx` — 透传 onQuestionSubmit
+- `src/data/negativeRules.ts`
+- `src/data/stylePresets.ts`
+- `src/types/memory.ts`
+- `src/agent/promptQualityGuard.ts`
+- `src/agent/conversationOrchestrator.ts`
+- `src/services/llmClient.ts`
+- `src/services/storage.ts`
+- `src/components/Sidebar.tsx`
 
 ## 未完成内容
 
-- 未修改 `systemPrompt.ts`（下一轮）
-- 未修改核心 Agent 逻辑架构（下一轮）
-- 未删除用户素材
+- API 设置页暴露 baseURL/model 切换
+- 桌面端端口 fallback
+- 参考图功能完整闭环
+- 自动化测试
+- 流式输出
 
 ## 风险提示
 
-- `loadApiSettings()` 中的 `resolveEnvFallback` 使用 `typeof process !== "undefined"` 检测 Node 环境，需确保 Vite 构建时不会 tree-shake 该分支
+- 老用户升级后 localStorage 数据首次加载时会经过 migrateProject 兼容，结构完整但旧版默认记忆中的 "iPhone" 不会自动修正（仅影响新创建的项目）
+- 桌面端 CORS 仍为 *，但只监听 127.0.0.1，本机外无法访问
 
 ## 下一步建议
 
-1. 由 Codex 审查本轮 diff，输出 REVIEW.md
-2. 确认后进入 Phase 1 核心架构升级
-
----
-
-## 日期
-
-2026-05-25
-
-## 执行 Agent
-
-Claude Code
-
-## 本轮修改目标
-
-第二轮：修复测试发现的 4 项问题（P0-P3）
-
-## 修改内容
-
-1. **P0：修复安全提醒误触发** — `checkSensitiveContent` 新增负面前缀过滤（与 `checkBrandKeywords` 同逻辑），跳过"不要出现暴力/色情"等否定句式，避免旅行/古镇等正常场景误触发敏感提醒
-2. **P1：修复品牌提醒误触应用户自定义名** — `checkBrandKeywords` 新增 `userInput` 参数，用户在输入中已出现的品牌词不再触发版权提醒
-3. **P2：合并多提醒段落** — 品牌提醒和安全提醒合并为一个统一的"温馨提示"段落，避免多条独立提醒堆叠造成阅读混乱
-4. **P3：systemPrompt 增加"信息够就生成"指引** — 当用户已提供 >= 4 个关键信息时，优先尝试生成提示词而不是继续追问
-
-## 修改文件
-
-- `src/agent/conversationOrchestrator.ts` — P0/P1/P2
-- `src/agent/systemPrompt.ts` — P3
-
-## 未完成内容
-
-- 无
-
-## 风险提示
-
-- `checkSensitiveContent` 和 `checkBrandKeywords` 共用同一份负面前缀正则，如果后续调整需同步修改两处
-
-## 下一步建议
-
-1. 由 Codex 审查本轮 diff，输出 REVIEW.md
-2. 验证旅行 App 场景不再误触发安全提醒
+- v0.4.0：流式输出（SSE）+ API 设置页 baseURL/model 切换
+- v0.5.0：参考图上传/存储闭环
