@@ -334,7 +334,7 @@ function shouldForcePromptGeneration(input: string, messages: ChatMessage[]): bo
 
 function isDefiniteNonVideoChat(input: string, messages: ChatMessage[]): boolean {
   const normalized = input.trim();
-  const isDefiniteMeta = /^(?:你(?:是)?(?:谁|什么|叫什么|几号|哪个|什么版本|版本)|(?:什么|你)版本|你好|hi\b|hello|嗨|嘿|早上好|下午好|晚上好|在吗)/i.test(normalized);
+  const isDefiniteMeta = /^(?:你(?:是)?(?:谁|什么|叫什么|几号|哪个|什么版本|版本)|(?:什么|你)版本|你好|hi\b|hello|嗨|嘿|早上好|下午好|晚上好|在吗|喜欢你|小金豆|谢谢|多谢|辛苦了|太棒了|好厉害|真好|爱了|哈哈哈|嘿嘿)/i.test(normalized);
   if (!isDefiniteMeta) return false;
 
   const hasRecentVideoContext = messages.slice(-3).some((message) =>
@@ -357,7 +357,7 @@ function isNonVideoQuery(input: string, messages: ChatMessage[]): boolean {
   );
   if (hasRecentVideoContext && normalized.length < 40) return false;
 
-  const isHighConfidenceMeta = /^(?:你(?:是)?(?:谁|什么|叫什么|几号|哪个|能|可以|会|有(?:什么|哪些))|(?:什么|你)版本|你好|hi\b|hello|嗨|嘿|早上好|下午好|晚上好|在吗|谢谢|多谢|辛苦了|再见|拜拜)/i.test(normalized);
+  const isHighConfidenceMeta = /^(?:你(?:是)?(?:谁|什么|叫什么|几号|哪个|能|可以|会|有(?:什么|哪些))|(?:什么|你)版本|你好|hi\b|hello|嗨|嘿|早上好|下午好|晚上好|在吗|谢谢|多谢|辛苦了|再见|拜拜|喜欢你|小金豆|金豆小子|真好|太棒了|好厉害|不错|爱了|哈哈哈|嘿嘿|嗯嗯|哦哦|晚安|早安)/i.test(normalized);
   if (isHighConfidenceMeta) return true;
 
   return (!hasRecentVideoContext && /[？?]$/.test(normalized) && normalized.length < 30)

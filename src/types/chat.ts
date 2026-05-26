@@ -60,4 +60,4 @@ export interface ApiSettings {
   videoApiKey: string;
 }
 
-export type MemoryCategory = "stylePreferences" | "voicePreferences" | "negativeRules" | "notes";
+export type MemoryCategory = "stylePreferences" | "voicePreferences" | "negativeRules" | "promptTemplates" | "notes";

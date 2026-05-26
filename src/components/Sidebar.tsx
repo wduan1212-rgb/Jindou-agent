@@ -1,14 +1,19 @@
-import { Clock3, Download, MessageSquareText, Moon, Pencil, Plus, Search, Settings2, Sparkles, Sun, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FolderPlus, MessageSquarePlus, MessageSquareText, Moon, Pencil, Search, Settings2, Sparkles, Sun, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { Project } from "../types/project";
+import type { WorkspaceData } from "../types/project";
 
 interface SidebarProps {
-  projects: Project[];
-  activeProjectId: string;
-  onNewProject: () => void;
-  onSelectProject: (projectId: string) => void;
-  onRenameProject: (projectId: string, title: string) => void;
-  onDeleteProject: (projectId: string) => void;
+  workspace: WorkspaceData;
+  activeConversationId: string;
+  expandedFolders: Set<string>;
+  onNewFolder: () => void;
+  onNewConversation: (folderId: string) => void;
+  onSelectConversation: (id: string) => void;
+  onToggleFolder: (id: string) => void;
+  onRenameFolder: (id: string, title: string) => void;
+  onRenameConversation: (id: string, title: string) => void;
+  onDeleteFolder: (id: string) => void;
+  onDeleteConversation: (id: string) => void;
   onOpenSettings: () => void;
   onOpenMemory: () => void;
   onCheckUpdates: () => void;
@@ -20,21 +25,17 @@ function getInitialTheme(): "light" | "dark" {
     const stored = localStorage.getItem("jindou.theme");
     if (stored === "dark" || stored === "light") return stored;
   } catch {}
-  if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
-  return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 export function Sidebar({
-  projects,
-  activeProjectId,
-  onNewProject,
-  onSelectProject,
-  onRenameProject,
-  onDeleteProject,
-  onOpenSettings,
-  onOpenMemory,
-  onCheckUpdates,
-  isCheckingUpdate
+  workspace,
+  activeConversationId,
+  expandedFolders,
+  onNewFolder, onNewConversation, onSelectConversation,
+  onToggleFolder, onRenameFolder, onRenameConversation,
+  onDeleteFolder, onDeleteConversation,
+  onOpenSettings, onOpenMemory, onCheckUpdates, isCheckingUpdate
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [theme, setTheme] = useState<"light" | "dark">(getInitialTheme);
@@ -44,25 +45,17 @@ export function Sidebar({
     try { localStorage.setItem("jindou.theme", theme); } catch {}
   }, [theme]);
 
-  function toggleTheme() {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
-  }
-
-  const filteredProjects = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return projects;
-    return projects.filter((project) => project.title.toLowerCase().includes(query));
-  }, [projects, searchQuery]);
-
-  function rename(project: Project) {
-    const nextTitle = window.prompt("编辑会话名称", project.title)?.trim();
-    if (nextTitle) onRenameProject(project.id, nextTitle);
-  }
-
-  function remove(project: Project) {
-    if (!window.confirm(`删除会话"${project.title}"？`)) return;
-    onDeleteProject(project.id);
-  }
+  const filteredFolders = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return workspace.folders;
+    return workspace.folders.filter((f) => {
+      if (f.title.toLowerCase().includes(q)) return true;
+      return f.conversationIds.some((cid) => {
+        const c = workspace.conversations.find((cc) => cc.id === cid);
+        return c?.title.toLowerCase().includes(q);
+      });
+    });
+  }, [workspace.folders, workspace.conversations, searchQuery]);
 
   return (
     <aside className="sidebar">
@@ -74,72 +67,89 @@ export function Sidebar({
         </button>
       </div>
 
-      <button className="new-chat-button" type="button" onClick={onNewProject}>
-        <Plus size={18} />
-        新建创作
+      <button className="new-chat-button" type="button" onClick={onNewFolder}>
+        <FolderPlus size={18} />
+        新建项目
       </button>
 
       <label className="search-box">
         <Search size={16} />
-        <input
-          placeholder="搜索项目"
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-        />
+        <input placeholder="搜索项目或对话" value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)} />
       </label>
 
-      <div className="sidebar-section-title">
-        <Clock3 size={16} />
-        最近对话
-      </div>
-
       <div className="project-list">
-        {filteredProjects.map((project) => (
-          <div
-            key={project.id}
-            className={`project-item ${project.id === activeProjectId ? "active" : ""}`}
-          >
-            <button type="button" className="project-main" onClick={() => onSelectProject(project.id)}>
-              <MessageSquareText size={18} />
-              <span>
-                <strong>{project.title}</strong>
-                <small>{project.tag}</small>
-              </span>
-            </button>
-            <span className="project-actions">
-              <button type="button" onClick={() => rename(project)} aria-label="编辑会话名称">
-                <Pencil size={14} />
-              </button>
-              <button type="button" onClick={() => remove(project)} aria-label="删除会话">
-                <Trash2 size={14} />
-              </button>
-            </span>
-          </div>
-        ))}
-        {filteredProjects.length === 0 && searchQuery.trim() && (
+        {filteredFolders.map((folder) => {
+          const isExpanded = expandedFolders.has(folder.id);
+          const folderConvos = workspace.conversations.filter((c) => c.folderId === folder.id);
+          return (
+            <div key={folder.id} className="folder-group">
+              <div className="folder-row">
+                <button className="folder-toggle" onClick={() => onToggleFolder(folder.id)}>
+                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+                <button className="folder-main" onClick={() => onToggleFolder(folder.id)}>
+                  <strong>{folder.title}</strong>
+                  <small>{folderConvos.length} 个对话</small>
+                </button>
+                <span className="folder-actions">
+                  <button onClick={() => onNewConversation(folder.id)} aria-label="新建对话">
+                    <MessageSquarePlus size={14} />
+                  </button>
+                  <button onClick={() => {
+                    const t = window.prompt("项目名称", folder.title)?.trim();
+                    if (t) onRenameFolder(folder.id, t);
+                  }} aria-label="重命名"><Pencil size={14} /></button>
+                  {workspace.folders.length > 1 && (
+                    <button onClick={() => {
+                      if (window.confirm(`删除项目"${folder.title}"及其所有对话？`)) onDeleteFolder(folder.id);
+                    }} aria-label="删除"><Trash2 size={14} /></button>
+                  )}
+                </span>
+              </div>
+              {isExpanded && (
+                <div className="convo-list">
+                  {folderConvos.map((convo) => (
+                    <div key={convo.id} className={`project-item ${convo.id === activeConversationId ? "active" : ""}`}>
+                      <button className="project-main" onClick={() => onSelectConversation(convo.id)}>
+                        <MessageSquareText size={16} />
+                        <span><strong>{convo.title}</strong><small>{convo.tag}</small></span>
+                      </button>
+                      <span className="project-actions">
+                        <button onClick={() => {
+                          const t = window.prompt("对话名称", convo.title)?.trim();
+                          if (t) onRenameConversation(convo.id, t);
+                        }} aria-label="重命名"><Pencil size={14} /></button>
+                        <button onClick={() => {
+                          if (window.confirm(`删除对话"${convo.title}"？`)) onDeleteConversation(convo.id);
+                        }} aria-label="删除"><Trash2 size={14} /></button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {filteredFolders.length === 0 && searchQuery.trim() && (
           <div className="empty-search">没有找到匹配的项目</div>
         )}
       </div>
 
       <div className="sidebar-bottom">
-        <button className="theme-toggle" type="button" onClick={toggleTheme}>
-          {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
-          {theme === "light" ? "暗色模式" : "亮色模式"}
-        </button>
         <button className="memory-entry" type="button" onClick={onCheckUpdates} disabled={isCheckingUpdate}>
-          <Download size={17} />
-          {isCheckingUpdate ? "检查中..." : "检查更新"}
+          <Download size={17} />{isCheckingUpdate ? "检查中..." : "检查更新"}
         </button>
         <button className="memory-entry" type="button" onClick={onOpenMemory}>
-          <Sparkles size={17} />
-          项目记忆
+          <Sparkles size={17} />项目记忆
         </button>
+        <div className="theme-switch" onClick={() => setTheme((p) => (p === "light" ? "dark" : "light"))} role="switch" aria-checked={theme === "dark"}>
+          <span className="theme-switch-track"><span className="theme-switch-thumb">{theme === "light" ? <Sun size={14} /> : <Moon size={14} />}</span></span>
+          <span className="theme-switch-label">{theme === "light" ? "亮色" : "暗色"}</span>
+        </div>
         <div className="user-card">
           <img src="/assets/user-avatar.png" alt="" />
-          <span>
-            <strong>金豆小子</strong>
-            <small>本地创作者</small>
-          </span>
+          <span><strong>金豆小子</strong><small>本地创作者</small></span>
         </div>
       </div>
     </aside>

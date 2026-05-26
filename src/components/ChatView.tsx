@@ -3,10 +3,10 @@ import { useEffect, useRef } from "react";
 import { InputBar } from "./InputBar";
 import { MessageBubble } from "./MessageBubble";
 import type { PromptSegment } from "../types/chat";
-import type { Project } from "../types/project";
+import type { Conversation } from "../types/project";
 
 interface ChatViewProps {
-  project: Project;
+  conversation: Conversation;
   input: string;
   disabled?: boolean;
   onInputChange: (value: string) => void;
@@ -27,7 +27,7 @@ const launchpadCards = [
 ];
 
 export function ChatView({
-  project,
+  conversation,
   input,
   disabled,
   onInputChange,
@@ -44,19 +44,19 @@ export function ChatView({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth"
     });
-  }, [project.messages.length, disabled]);
+  }, [conversation.messages.length, disabled]);
 
   return (
     <main className="chat-view">
       <header className="chat-header">
         <div>
-          <h1>{project.title}</h1>
+          <h1>{conversation.title}</h1>
           <span>对话已开始</span>
         </div>
       </header>
 
       <div className="chat-scroll" ref={scrollRef}>
-        {project.messages.length === 0 ? (
+        {conversation.messages.length === 0 ? (
           <section className="welcome-panel">
             <div className="welcome-visual">
               <Clapperboard size={56} />
@@ -85,7 +85,7 @@ export function ChatView({
           </section>
         ) : (
           <div className="message-list">
-            {project.messages.map((message) => (
+            {conversation.messages.map((message) => (
               <MessageBubble
                 key={message.id}
                 message={message}
@@ -100,9 +100,9 @@ export function ChatView({
                 <img src="/assets/agent-avatar.png" alt="" className="message-avatar" />
                 <div className="typing-bubble">
                   <span className="typing-label">正在思考</span>
-                  <span />
-                  <span />
-                  <span />
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
                 </div>
               </div>
             )}

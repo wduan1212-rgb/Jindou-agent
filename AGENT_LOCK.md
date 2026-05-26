@@ -2,25 +2,21 @@
 
 ## 当前状态
 
-working 🔧 Claude Code 正在修复闲聊模式缺失问题
+idle ✅ v0.3.1 闲聊修复版已交付
 
-## 当前执行 Agent
+## 本轮修复
 
-Claude Code
+Codex 审查指出 4 个边界问题，全部修复：
+1. isNonVideoQuery 增加上下文感知 — 不再误伤多轮 brief 短回复
+2. isDefiniteNonVideoChat 安全网 — 高置信元问题丢弃误生成的 PROMPT_CARD
+3. 版本号动态注入 — 问"几号版本"准确回复 "Jindou Agent 0.3.0"
+4. 测试脚本修复 — 排除 notice/错误响应的误判
 
-## 开始时间
+## 测试结果
 
-2026-05-26 12:50
+16 场景全部通过（6 闲聊 + 10 引导对话）
 
-## 本轮任务
+## 发布状态
 
-修复 Agent 闲聊能力缺陷 —— 用户问非视频相关问题（如"你是几号版本"）时错误生成视频提示词
-
-## 根因
-
-systemPrompt.ts 缺少非视频场景的对话指引，LLM 把所有输入都当作视频 brief 处理
-
-## 修复方案
-
-1. systemPrompt.ts：增加闲聊模式规则
-2. conversationOrchestrator.ts：增加非视频意图检测，跳过强制生成
+- GitHub push ✅
+- 桌面版重建 + 安装 ✅

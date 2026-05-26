@@ -46,6 +46,9 @@ const chatCases = [
   { name: "问能力", input: "你能做什么？", chat: true },
   { name: "打招呼", input: "你好啊", chat: true },
   { name: "纯闲聊", input: "今天天气真好", chat: true },
+  { name: "喜欢小金豆", input: "喜欢你小金豆", chat: true },
+  { name: "夸Agent", input: "你太棒了！", chat: true },
+  { name: "感谢", input: "谢谢你的帮助", chat: true },
   { name: "视频意图", input: "帮我做一个15秒咖啡广告，女生探店，中文口播：这家咖啡绝了", chat: false },
 ];
 

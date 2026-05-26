@@ -1,183 +1,194 @@
 import type { ApiSettings, ChatMessage } from "../types/chat";
-import type { Project } from "../types/project";
-import { createDefaultMemory } from "../types/memory";
+import type { Conversation, LegacyProject, ProjectFolder, WorkspaceData } from "../types/project";
+import { createDefaultGlobalMemory, createDefaultMemory, type GlobalProjectMemory, type ProjectMemory } from "../types/memory";
 import { DEFAULT_LLM_BASE_URL, DEFAULT_LLM_MODEL } from "../data/modelRules";
 
-const PROJECTS_KEY = "jindou.projects.v1";
-const ACTIVE_PROJECT_KEY = "jindou.activeProjectId.v1";
+const WORKSPACE_KEY = "jindou.workspace.v2";
+const LEGACY_PROJECTS_KEY = "jindou.projects.v1";
 const API_SETTINGS_KEY = "jindou.apiSettings.v1";
 const LEGACY_SESSION_API_SETTINGS_KEY = "jindou.apiSettings.session.v1";
-const MAX_STORAGE_BYTES = 8 * 1024 * 1024; // 8MB safety threshold
+const MAX_STORAGE_BYTES = 8 * 1024 * 1024;
 
 export function createId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36)}`;
 }
 
-export function nowIso(): string {
-  return new Date().toISOString();
-}
+export function nowIso(): string { return new Date().toISOString(); }
 
 export function createMessage(message: Omit<ChatMessage, "id" | "createdAt">): ChatMessage {
+  return { ...message, id: createId("msg"), createdAt: nowIso() };
+}
+
+// ===== Workspace =====
+
+export function createDefaultWorkspace(): WorkspaceData {
+  const folder = createDefaultFolder("默认项目");
+  const convo = createDefaultConversation(folder.id);
+  folder.conversationIds = [convo.id];
   return {
-    ...message,
-    id: createId("msg"),
-    createdAt: nowIso()
+    schemaVersion: 2,
+    folders: [folder],
+    conversations: [convo],
+    globalMemory: createDefaultGlobalMemory(),
+    activeFolderId: folder.id,
+    activeConversationId: convo.id
   };
 }
 
-export function createInitialProject(): Project {
+export function createDefaultFolder(title: string): ProjectFolder {
   const now = nowIso();
   return {
-    id: createId("project"),
+    id: createId("folder"),
+    title,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+    memory: createDefaultMemory(),
+    conversationIds: []
+  };
+}
+
+export function createDefaultConversation(folderId: string): Conversation {
+  const now = nowIso();
+  return {
+    id: createId("convo"),
+    folderId,
     title: "新的创作",
     status: "active",
     tag: "对话已开始",
     createdAt: now,
     updatedAt: now,
     messages: [],
-    references: [],
-    memory: createDefaultMemory()
+    references: []
   };
 }
 
-export function loadProjects(): Project[] {
+export function loadWorkspace(): WorkspaceData {
   try {
-    const raw = localStorage.getItem(PROJECTS_KEY);
-    if (!raw) return [createInitialProject()];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return [createInitialProject()];
-    return parsed.map(migrateProject);
-  } catch {
-    return [createInitialProject()];
-  }
+    const raw = localStorage.getItem(WORKSPACE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as WorkspaceData;
+      if (parsed.schemaVersion === 2 && parsed.folders?.length) return migrateWorkspaceFields(parsed);
+    }
+  } catch {}
+
+  // v1 → v2 迁移
+  try {
+    const raw = localStorage.getItem(LEGACY_PROJECTS_KEY);
+    if (raw) {
+      const legacy = JSON.parse(raw) as LegacyProject[];
+      if (Array.isArray(legacy) && legacy.length) return migrateLegacyProjects(legacy);
+    }
+  } catch {}
+
+  return createDefaultWorkspace();
 }
 
-export function saveProjects(projects: Project[]): void {
-  try {
-    const json = JSON.stringify(projects);
-    if (json.length > MAX_STORAGE_BYTES) {
-      const compacted = compactProjectsForStorage(projects);
-      const compactedJson = JSON.stringify(compacted);
-      if (compactedJson.length <= MAX_STORAGE_BYTES) {
-        localStorage.setItem(PROJECTS_KEY, compactedJson);
-      } else {
-        tryFallbackSave(compacted);
-      }
-    } else {
-      localStorage.setItem(PROJECTS_KEY, json);
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "QuotaExceededError") {
-      tryFallbackSave(projects);
-    }
-  }
-}
-
-function tryFallbackSave(projects: Project[]): void {
-  const minimal = projects.slice(0, Math.max(1, projects.length - 3)).map((project) => ({
-    ...project,
-    messages: project.messages.slice(-20).map((message) => ({
-      ...message,
-      prompts: message.prompts?.map((prompt) => ({
-        ...prompt,
-        prompt: prompt.prompt.length > 300 ? prompt.prompt.slice(0, 300) + "…" : prompt.prompt
-      }))
+function migrateWorkspaceFields(ws: WorkspaceData): WorkspaceData {
+  return {
+    ...ws,
+    globalMemory: { ...createDefaultGlobalMemory(), ...ws.globalMemory },
+    folders: ws.folders.map((f) => ({
+      ...f,
+      memory: { ...createDefaultMemory(), ...f.memory, promptTemplates: f.memory.promptTemplates || [] },
+      conversationIds: f.conversationIds || []
     })),
+    conversations: ws.conversations.map((c) => ({ ...c, references: c.references || [], tag: c.tag || "" })),
+    activeFolderId: ws.activeFolderId || ws.folders[0]?.id || "",
+    activeConversationId: ws.activeConversationId || ws.conversations[0]?.id || ""
+  };
+}
+
+function migrateLegacyProjects(legacy: LegacyProject[]): WorkspaceData {
+  const folders: ProjectFolder[] = [];
+  const conversations: Conversation[] = [];
+  for (const lp of legacy) {
+    const folder = createDefaultFolder(lp.title || "迁移项目");
+    folder.memory = { ...createDefaultMemory(), ...lp.memory, promptTemplates: [] };
+    folder.updatedAt = lp.updatedAt || folder.createdAt;
+    const convo = createDefaultConversation(folder.id);
+    convo.title = lp.title || "历史对话";
+    convo.messages = lp.messages || [];
+    convo.references = lp.references || [];
+    convo.tag = lp.tag || "";
+    convo.updatedAt = lp.updatedAt || convo.createdAt;
+    folder.conversationIds = [convo.id];
+    folders.push(folder);
+    conversations.push(convo);
+  }
+  return {
+    schemaVersion: 2,
+    folders,
+    conversations,
+    globalMemory: createDefaultGlobalMemory(),
+    activeFolderId: folders[0]?.id || "",
+    activeConversationId: conversations[0]?.id || ""
+  };
+}
+
+export function saveWorkspace(ws: WorkspaceData): void {
+  try {
+    const json = JSON.stringify(ws);
+    if (json.length > MAX_STORAGE_BYTES) {
+      const compacted = compactWorkspace(ws);
+      localStorage.setItem(WORKSPACE_KEY, JSON.stringify(compacted));
+    } else {
+      localStorage.setItem(WORKSPACE_KEY, json);
+    }
+  } catch {
+    tryFallbackSave(ws);
+  }
+}
+
+function tryFallbackSave(ws: WorkspaceData): void {
+  const minimal = createDefaultWorkspace();
+  minimal.folders = ws.folders.slice(0, 3).map((f) => ({
+    ...f,
+    conversationIds: f.conversationIds.slice(0, 5)
+  }));
+  minimal.conversations = ws.conversations.slice(0, 5).map((c) => ({
+    ...c,
+    messages: c.messages.slice(-10),
     references: []
   }));
+  minimal.globalMemory = ws.globalMemory;
   try {
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify(minimal));
+    localStorage.setItem(WORKSPACE_KEY, JSON.stringify(minimal));
   } catch {
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify([createInitialProject()]));
+    localStorage.setItem(WORKSPACE_KEY, JSON.stringify(createDefaultWorkspace()));
   }
 }
 
-function compactProjectsForStorage(projects: Project[]): Project[] {
-  return projects.map((project) => ({
-    ...project,
-    messages: project.messages.map((message) => ({
-      ...message,
-      prompts: message.prompts?.map((prompt) => ({
-        ...prompt,
-        prompt: prompt.prompt.length > 600 ? prompt.prompt.slice(0, 600) + "…" : prompt.prompt
+function compactWorkspace(ws: WorkspaceData): WorkspaceData {
+  return {
+    ...ws,
+    conversations: ws.conversations.map((c) => ({
+      ...c,
+      messages: c.messages.map((m) => ({
+        ...m,
+        prompts: m.prompts?.map((p) => ({
+          ...p,
+          prompt: p.prompt.length > 600 ? p.prompt.slice(0, 600) + "…" : p.prompt
+        }))
       }))
     }))
-  }));
-}
-
-function migrateProject(raw: Record<string, unknown>): Project {
-  const now = nowIso();
-  return {
-    id: String(raw.id || createId("project")),
-    title: String(raw.title || "新的创作"),
-    status: raw.status === "draft" ? "draft" : "active",
-    tag: String(raw.tag || ""),
-    createdAt: String(raw.createdAt || now),
-    updatedAt: String(raw.updatedAt || now),
-    messages: Array.isArray(raw.messages)
-      ? raw.messages.map((message: Record<string, unknown>) => ({
-          id: String(message.id || createId("msg")),
-          role: message.role === "assistant" ? "assistant" : "user",
-          kind: ["text", "questions", "prompts", "notice"].includes(String(message.kind))
-            ? (String(message.kind) as ChatMessage["kind"])
-            : "text",
-          content: typeof message.content === "string" ? message.content : "",
-          questions: Array.isArray(message.questions) ? message.questions as ChatMessage["questions"] : undefined,
-          prompts: Array.isArray(message.prompts) ? message.prompts as ChatMessage["prompts"] : undefined,
-          createdAt: String(message.createdAt || now)
-        }))
-      : [],
-    references: Array.isArray(raw.references) ? raw.references as Project["references"] : [],
-    memory: raw.memory && typeof raw.memory === "object"
-      ? {
-          defaultModel: String((raw.memory as Record<string, unknown>).defaultModel || "Seedance"),
-          defaultShotMode: (raw.memory as Record<string, unknown>).defaultShotMode === "single" ? "single" : "multi",
-          stylePreferences: Array.isArray((raw.memory as Record<string, unknown>).stylePreferences)
-            ? (raw.memory as Record<string, unknown>).stylePreferences as string[]
-            : [],
-          voicePreferences: Array.isArray((raw.memory as Record<string, unknown>).voicePreferences)
-            ? (raw.memory as Record<string, unknown>).voicePreferences as string[]
-            : [],
-          negativeRules: Array.isArray((raw.memory as Record<string, unknown>).negativeRules)
-            ? (raw.memory as Record<string, unknown>).negativeRules as string[]
-            : [],
-          notes: Array.isArray((raw.memory as Record<string, unknown>).notes)
-            ? (raw.memory as Record<string, unknown>).notes as string[]
-            : []
-        }
-      : createDefaultMemory()
   };
 }
 
-export function loadActiveProjectId(): string | null {
-  return localStorage.getItem(ACTIVE_PROJECT_KEY);
-}
-
-export function saveActiveProjectId(projectId: string): void {
-  localStorage.setItem(ACTIVE_PROJECT_KEY, projectId);
-}
+// ===== API Settings =====
 
 export function loadApiSettings(): ApiSettings {
   const fallback: ApiSettings = {
-    llmBaseUrl: DEFAULT_LLM_BASE_URL,
-    llmModel: DEFAULT_LLM_MODEL,
-    llmApiKey: "",
-    videoBaseUrl: "",
-    videoModel: "Seedance",
-    videoApiKey: ""
+    llmBaseUrl: DEFAULT_LLM_BASE_URL, llmModel: DEFAULT_LLM_MODEL, llmApiKey: "",
+    videoBaseUrl: "", videoModel: "Seedance", videoApiKey: ""
   };
-
   try {
     const raw = localStorage.getItem(API_SETTINGS_KEY) || sessionStorage.getItem(LEGACY_SESSION_API_SETTINGS_KEY);
     if (!raw) return resolveEnvFallback(fallback);
     const settings = { ...fallback, ...(JSON.parse(raw) as Partial<ApiSettings>) };
-    if (!localStorage.getItem(API_SETTINGS_KEY)) {
-      localStorage.setItem(API_SETTINGS_KEY, JSON.stringify(settings));
-    }
+    if (!localStorage.getItem(API_SETTINGS_KEY)) localStorage.setItem(API_SETTINGS_KEY, JSON.stringify(settings));
     return settings;
-  } catch {
-    return resolveEnvFallback(fallback);
-  }
+  } catch { return resolveEnvFallback(fallback); }
 }
 
 function resolveEnvFallback(fallback: ApiSettings): ApiSettings {
