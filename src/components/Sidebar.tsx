@@ -1,5 +1,5 @@
-import { Clock3, Download, MessageSquareText, Pencil, Plus, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Clock3, Download, MessageSquareText, Moon, Pencil, Plus, Search, Settings2, Sparkles, Sun, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type { Project } from "../types/project";
 
 interface SidebarProps {
@@ -15,6 +15,15 @@ interface SidebarProps {
   isCheckingUpdate?: boolean;
 }
 
+function getInitialTheme(): "light" | "dark" {
+  try {
+    const stored = localStorage.getItem("jindou.theme");
+    if (stored === "dark" || stored === "light") return stored;
+  } catch {}
+  if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
+  return "light";
+}
+
 export function Sidebar({
   projects,
   activeProjectId,
@@ -28,6 +37,16 @@ export function Sidebar({
   isCheckingUpdate
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [theme, setTheme] = useState<"light" | "dark">(getInitialTheme);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("jindou.theme", theme); } catch {}
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  }
 
   const filteredProjects = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -103,6 +122,10 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-bottom">
+        <button className="theme-toggle" type="button" onClick={toggleTheme}>
+          {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
+          {theme === "light" ? "暗色模式" : "亮色模式"}
+        </button>
         <button className="memory-entry" type="button" onClick={onCheckUpdates} disabled={isCheckingUpdate}>
           <Download size={17} />
           {isCheckingUpdate ? "检查中..." : "检查更新"}

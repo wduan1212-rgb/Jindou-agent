@@ -17,13 +17,13 @@ interface ChatViewProps {
   onQuestionSubmit: (answer: string) => void;
 }
 
-const quickCards = [
-  { icon: Clapperboard, title: "把脚本变成", text: "视频提示词" },
-  { icon: Sparkles, title: "从 0 到 1", text: "搭建广告视频" },
-  { icon: Wand2, title: "优化视频模型", text: "提示词" },
-  { icon: Scissors, title: "拆分 30 秒", text: "多镜头视频" },
-  { icon: FileText, title: "生成单镜头", text: "脚本提示词" },
-  { icon: Mic2, title: "帮我确认", text: "口播与风格" }
+const launchpadCards = [
+  { icon: Clapperboard, title: "从想法到成片", desc: "给我一个模糊念头，我帮你变成完整脚本", prompt: "我想做一个" },
+  { icon: Scissors, title: "拆解脚本为分镜", desc: "把已有脚本拆成多镜头提示词", prompt: "帮我把这段脚本拆成分镜：" },
+  { icon: Wand2, title: "优化镜头语言", desc: "让画面描述更具体、更有导演感", prompt: "帮我优化这条提示词的镜头语言：" },
+  { icon: Sparkles, title: "生成风格提示词", desc: "匹配真实感、电影感、复古等风格", prompt: "帮我生成一条" },
+  { icon: Mic2, title: "设计口播与声音", desc: "为视频配上自然的口播和音效设计", prompt: "帮我设计" },
+  { icon: FileText, title: "参考风格分析", desc: "描述你喜欢的视频风格，我帮你提取关键元素", prompt: "我喜欢的视频风格是" },
 ];
 
 export function ChatView({
@@ -58,29 +58,26 @@ export function ChatView({
       <div className="chat-scroll" ref={scrollRef}>
         {project.messages.length === 0 ? (
           <section className="welcome-panel">
-            <img src="/assets/agent-avatar.png" alt="" className="hero-avatar" />
-            <h2>Jindou Agent</h2>
-            <p>你的导演级视频提示词搭档</p>
-            <div className="pixel-divider">
-              <span />
+            <div className="welcome-visual">
+              <Clapperboard size={56} />
             </div>
-            <h3>今天想创作什么视频？</h3>
-            <div className="quick-grid">
-              {quickCards.map((card) => {
+            <h2>今天想创作什么？</h2>
+            <p>我是你的 AI 导演搭档，帮你把想法变成可执行的视频提示词</p>
+            <div className="launchpad-grid">
+              {launchpadCards.map((card) => {
                 const Icon = card.icon;
                 return (
                   <button
-                    key={`${card.title}-${card.text}`}
+                    key={card.title}
                     type="button"
-                    className="quick-card"
-                    onClick={() => onInputChange(`${card.title}${card.text}：`)}
+                    className="launchpad-card"
+                    onClick={() => onInputChange(card.prompt)}
                   >
-                    <Icon size={26} />
-                    <span>
-                      {card.title}
-                      <br />
-                      {card.text}
-                    </span>
+                    <Icon size={28} />
+                    <div>
+                      <h3>{card.title}</h3>
+                      <p>{card.desc}</p>
+                    </div>
                   </button>
                 );
               })}
@@ -102,6 +99,7 @@ export function ChatView({
               <div className="message-row agent">
                 <img src="/assets/agent-avatar.png" alt="" className="message-avatar" />
                 <div className="typing-bubble">
+                  <span className="typing-label">正在思考</span>
                   <span />
                   <span />
                   <span />
