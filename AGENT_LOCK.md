@@ -2,24 +2,25 @@
 
 ## 当前状态
 
-idle ✅ v0.3.0 已发布
+working 🔧 Claude Code 正在修复闲聊模式缺失问题
 
-## 执行记录
+## 当前执行 Agent
 
-| 轮次 | Agent | 任务 | 结果 |
-|------|-------|------|------|
-| 审查 | Claude Code | 全项目代码审查 | 12项优化建议 |
-| 审查 | Codex | 独立审查 | 确认12项 + 补充5项 |
-| 执行 | Claude Code | 6项P1优化 | npm run build ✅ |
-| 测试 | Claude Code | 31场景×3轮 | 通过 |
-| 发布 | Claude Code | GitHub + 构建 + 安装 | ✅ |
+Claude Code
 
-## 最终结果
+## 开始时间
 
-**v0.3.0 已全面交付：**
-- ✅ GitHub 代码已推送（tag v0.3.0）
-- ✅ GitHub Actions 自动构建 Release
-- ✅ 本地桌面版 v0.3.0 已安装
-- ✅ 旧版 v0.2.0 dmg 已清理
-- ✅ Spotlight 搜索只有 1 个 Jindou Agent.app
-- ✅ 31个场景测试通过
+2026-05-26 12:50
+
+## 本轮任务
+
+修复 Agent 闲聊能力缺陷 —— 用户问非视频相关问题（如"你是几号版本"）时错误生成视频提示词
+
+## 根因
+
+systemPrompt.ts 缺少非视频场景的对话指引，LLM 把所有输入都当作视频 brief 处理
+
+## 修复方案
+
+1. systemPrompt.ts：增加闲聊模式规则
+2. conversationOrchestrator.ts：增加非视频意图检测，跳过强制生成

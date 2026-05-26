@@ -2,6 +2,12 @@ import { applyMemoryUpdates, extractMemoryUpdates } from "./memoryManager";
 import { finalizePromptTexts, type FinalizedPromptText } from "./promptFinalizer";
 import { guardPromptText } from "./promptQualityGuard";
 import { JINDOU_SYSTEM_PROMPT } from "./systemPrompt";
+
+const AGENT_VERSION = "0.3.0";
+
+function buildSystemPrompt(): string {
+  return JINDOU_SYSTEM_PROMPT.replace("{{VERSION}}", AGENT_VERSION);
+}
 import { parseDurationSeconds } from "./durationSplitter";
 import { chat, LlmError, type ChatCompletionMessage } from "../services/llmClient";
 import { createId, createMessage } from "../services/storage";
@@ -107,6 +113,11 @@ export async function runAgentTurn(args: AgentTurnArgs): Promise<AgentTurnResult
   }
 
   let promptExtraction = extractPromptCards(reply);
+
+  if (promptExtraction.contents.length > 0 && isDefiniteNonVideoChat(args.input, args.messages)) {
+    promptExtraction = { contents: [], usedExplicitTags: false };
+  }
+
   if (promptExtraction.contents.length === 0 && shouldForcePromptGeneration(args.input, args.messages)) {
     const repairedReply = await requestPromptCardRepair(llmMessages, args.input, reply).catch(() => null);
     const repairedExtraction = repairedReply ? extractPromptCards(repairedReply) : null;
@@ -310,13 +321,47 @@ async function requestSpeechFidelityRepair(
 }
 
 function shouldForcePromptGeneration(input: string, messages: ChatMessage[]): boolean {
+  if (isNonVideoQuery(input, messages)) return false;
+
   const text = [messages.slice(-4).map((message) => message.content).join("\n"), input].join("\n");
 
-  if (/生成(?:最终)?提示词|最终提示词|直接生成|输出提示词|写(?:成)?提示词|请生成/i.test(input)) {
+  if (/生成(?:最终)?提示词|最终提示词|直接生成|输出提示词|写(?:成)?提示词|请生成|好了|可以了|生成吧|帮我生成/i.test(input)) {
     return true;
   }
 
   return hasCompleteVideoBrief(text);
+}
+
+function isDefiniteNonVideoChat(input: string, messages: ChatMessage[]): boolean {
+  const normalized = input.trim();
+  const isDefiniteMeta = /^(?:你(?:是)?(?:谁|什么|叫什么|几号|哪个|什么版本|版本)|(?:什么|你)版本|你好|hi\b|hello|嗨|嘿|早上好|下午好|晚上好|在吗)/i.test(normalized);
+  if (!isDefiniteMeta) return false;
+
+  const hasRecentVideoContext = messages.slice(-3).some((message) =>
+    message.role === "user" && /广告|短视频|视频|短片|vlog|探店|教程|宣传片|种草|提示词|脚本|分镜|口播|PROMPT_CARD/i.test(message.content || "")
+  );
+  return !hasRecentVideoContext;
+}
+
+function isNonVideoQuery(input: string, messages: ChatMessage[]): boolean {
+  const normalized = input.trim();
+
+  const hasExplicitGenerateOrder = /生成(?:最终)?提示词|最终提示词|直接生成|输出提示词|写(?:成)?提示词|请生成|好了|生成吧|可以了|帮我生成|好的.*生成/i.test(normalized);
+  if (hasExplicitGenerateOrder) return false;
+
+  const hasVideoIntent = /广告|短视频|视频|短片|影片|片子|vlog|探店|教程|宣传片|种草|提示词|脚本|分镜|镜头|口播|PROMPT_CARD/i.test(normalized);
+  if (hasVideoIntent) return false;
+
+  const hasRecentVideoContext = messages.slice(-3).some((message) =>
+    message.role === "user" && /广告|短视频|视频|短片|vlog|探店|教程|宣传片|种草|提示词|脚本|分镜|口播|PROMPT_CARD/i.test(message.content || "")
+  );
+  if (hasRecentVideoContext && normalized.length < 40) return false;
+
+  const isHighConfidenceMeta = /^(?:你(?:是)?(?:谁|什么|叫什么|几号|哪个|能|可以|会|有(?:什么|哪些))|(?:什么|你)版本|你好|hi\b|hello|嗨|嘿|早上好|下午好|晚上好|在吗|谢谢|多谢|辛苦了|再见|拜拜)/i.test(normalized);
+  if (isHighConfidenceMeta) return true;
+
+  return (!hasRecentVideoContext && /[？?]$/.test(normalized) && normalized.length < 30)
+    || (!hasRecentVideoContext && normalized.length < 6);
 }
 
 function shouldRepairDurationMismatch(input: string, messages: ChatMessage[], promptContents: string[]): boolean {
@@ -530,7 +575,7 @@ function buildLlmMessages(
   return [
     {
       role: "system",
-      content: JINDOU_SYSTEM_PROMPT
+      content: buildSystemPrompt()
     },
     ...history,
     {
