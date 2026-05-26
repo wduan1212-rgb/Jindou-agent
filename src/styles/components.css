@@ -31,7 +31,7 @@
   background: var(--brand-blue);
 }
 
-.primary-inline-button:hover {
+.primary-inline-button:hover:not(:disabled) {
   background: var(--brand-blue-hover);
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(61, 124, 255, 0.3);
@@ -418,6 +418,35 @@
 /* ===== Memory Panel ===== */
 .memory-modal { width: min(780px, 100%); }
 
+.memory-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.memory-tab {
+  flex: 1;
+  padding: 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.memory-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-glass);
+}
+
+.memory-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .memory-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -451,8 +480,8 @@
 
 .memory-tag button {
   display: inline-flex;
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;

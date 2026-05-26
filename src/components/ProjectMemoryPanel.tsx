@@ -33,8 +33,8 @@ export function ProjectMemoryPanel({
   const defaultShotMode = isFolderMemory ? (memory as ProjectMemory).defaultShotMode : "multi";
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="modal-panel memory-modal">
+    <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal-panel memory-modal" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
         <header className="modal-header">
           <div>
             <span className="eyebrow"><Sparkles size={15} />Memory</span>
@@ -43,23 +43,9 @@ export function ProjectMemoryPanel({
           <button className="icon-button" type="button" onClick={onClose} aria-label="关闭"><X size={18} /></button>
         </header>
 
-        <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border)" }}>
-          <button
-            onClick={() => setScope("folder")}
-            style={{
-              flex: 1, padding: "12px", border: 0, background: scope === "folder" ? "var(--accent-soft)" : "transparent",
-              color: scope === "folder" ? "var(--accent)" : "var(--text-secondary)", fontWeight: 700, cursor: "pointer",
-              borderBottom: scope === "folder" ? "2px solid var(--accent)" : "2px solid transparent"
-            }}
-          >当前项目</button>
-          <button
-            onClick={() => setScope("global")}
-            style={{
-              flex: 1, padding: "12px", border: 0, background: scope === "global" ? "var(--accent-soft)" : "transparent",
-              color: scope === "global" ? "var(--accent)" : "var(--text-secondary)", fontWeight: 700, cursor: "pointer",
-              borderBottom: scope === "global" ? "2px solid var(--accent)" : "2px solid transparent"
-            }}
-          >全局偏好</button>
+        <div className="memory-tabs">
+          <button type="button" className={`memory-tab ${scope === "folder" ? "active" : ""}`} onClick={() => setScope("folder")}>当前项目</button>
+          <button type="button" className={`memory-tab ${scope === "global" ? "active" : ""}`} onClick={() => setScope("global")}>全局偏好</button>
         </div>
 
         <div className="memory-grid">
@@ -74,7 +60,7 @@ export function ProjectMemoryPanel({
 
         <div className="memory-input">
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={`新增${scope === "folder" ? "项目" : "全局"}偏好`} />
-          <button className="primary-inline-button" type="button" onClick={submit}><Plus size={17} />添加</button>
+          <button className="primary-inline-button" type="button" onClick={submit} disabled={!note.trim()}><Plus size={17} />添加</button>
         </div>
       </div>
     </div>

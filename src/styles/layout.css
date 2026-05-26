@@ -115,6 +115,11 @@
   color: var(--text-primary);
 }
 
+.search-box input:focus {
+  box-shadow: none;
+  border-color: transparent;
+}
+
 .search-box input::placeholder {
   color: var(--text-muted);
 }
@@ -202,12 +207,13 @@
   transition: opacity var(--transition-fast);
 }
 
-.folder-row:hover .folder-actions { opacity: 1; }
+.folder-row:hover .folder-actions,
+.folder-row:focus-within .folder-actions { opacity: 1; }
 
 .folder-actions button {
   display: inline-flex;
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
@@ -291,12 +297,13 @@
 }
 
 .project-item:hover .project-actions,
-.project-item.active .project-actions { opacity: 1; }
+.project-item.active .project-actions,
+.project-item:focus-within .project-actions { opacity: 1; }
 
 .project-actions button {
   display: inline-flex;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
@@ -346,7 +353,7 @@
 
 .memory-entry:disabled { cursor: progress; opacity: 0.6; }
 
-.memory-entry:hover {
+.memory-entry:hover:not(:disabled) {
   color: var(--director-purple);
   border-color: var(--director-purple);
   background: var(--director-purple-soft);
@@ -355,6 +362,7 @@
 /* Theme switch */
 .theme-switch {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 10px;
   min-height: 48px;
@@ -363,11 +371,18 @@
   border-radius: var(--radius);
   background: var(--bg-glass);
   cursor: pointer;
+  font: inherit;
+  color: inherit;
   transition: all var(--transition-fast);
 }
 
 .theme-switch:hover {
   border-color: var(--border-strong);
+}
+
+.theme-switch:focus-visible {
+  outline: 2px solid var(--brand-blue);
+  outline-offset: 2px;
 }
 
 .theme-switch-track {
@@ -589,6 +604,12 @@
 
 .input-shell:focus-within {
   border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px var(--border-focus);
+}
+
+.input-shell .textarea-row textarea:focus {
+  box-shadow: none;
+  border-color: transparent;
 }
 
 .textarea-row {

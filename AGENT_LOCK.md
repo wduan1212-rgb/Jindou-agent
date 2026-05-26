@@ -2,21 +2,26 @@
 
 ## 当前状态
 
-idle ✅ v0.3.1 闲聊修复版已交付
+idle ✅ v0.4.0 已交付
 
-## 本轮修复
+## 本轮完成
 
-Codex 审查指出 4 个边界问题，全部修复：
-1. isNonVideoQuery 增加上下文感知 — 不再误伤多轮 brief 短回复
-2. isDefiniteNonVideoChat 安全网 — 高置信元问题丢弃误生成的 PROMPT_CARD
-3. 版本号动态注入 — 问"几号版本"准确回复 "Jindou Agent 0.3.0"
-4. 测试脚本修复 — 排除 notice/错误响应的误判
+Codex 主理方案，Claude Code 执行：
 
-## 测试结果
+### 4 个 Bug 修复
+1. 输入框瘦身 — 删除无功能标签
+2. 闲聊扩展 — "喜欢你小金豆" 不再误生成
+3. "正在思考"竖排修复
+4. 主题切换滑动开关 + 删除双层光效
 
-16 场景全部通过（6 闲聊 + 10 引导对话）
+### 项目文件夹系统
+- WorkspaceData > ProjectFolder > Conversation 三层结构
+- 项目独立记忆 + 提示词模板
+- 全局偏好跨项目共享
+- v1→v2 自动迁移
 
-## 发布状态
-
-- GitHub push ✅
-- 桌面版重建 + 安装 ✅
+### 验证
+- typecheck ✅
+- build ✅
+- 19/19 聊天+引导测试 ✅
+- Spotlight: 1个 Jindou Agent ✅

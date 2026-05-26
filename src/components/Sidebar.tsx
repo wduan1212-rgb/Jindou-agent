@@ -93,15 +93,17 @@ export function Sidebar({
                   <small>{folderConvos.length} 个对话</small>
                 </button>
                 <span className="folder-actions">
-                  <button onClick={() => onNewConversation(folder.id)} aria-label="新建对话">
+                  <button onClick={(e) => { e.stopPropagation(); onNewConversation(folder.id); }} aria-label="新建对话">
                     <MessageSquarePlus size={14} />
                   </button>
-                  <button onClick={() => {
+                  <button onClick={(e) => {
+                    e.stopPropagation();
                     const t = window.prompt("项目名称", folder.title)?.trim();
                     if (t) onRenameFolder(folder.id, t);
                   }} aria-label="重命名"><Pencil size={14} /></button>
                   {workspace.folders.length > 1 && (
-                    <button onClick={() => {
+                    <button onClick={(e) => {
+                      e.stopPropagation();
                       if (window.confirm(`删除项目"${folder.title}"及其所有对话？`)) onDeleteFolder(folder.id);
                     }} aria-label="删除"><Trash2 size={14} /></button>
                   )}
@@ -116,11 +118,13 @@ export function Sidebar({
                         <span><strong>{convo.title}</strong><small>{convo.tag}</small></span>
                       </button>
                       <span className="project-actions">
-                        <button onClick={() => {
+                        <button onClick={(e) => {
+                          e.stopPropagation();
                           const t = window.prompt("对话名称", convo.title)?.trim();
                           if (t) onRenameConversation(convo.id, t);
                         }} aria-label="重命名"><Pencil size={14} /></button>
-                        <button onClick={() => {
+                        <button onClick={(e) => {
+                          e.stopPropagation();
                           if (window.confirm(`删除对话"${convo.title}"？`)) onDeleteConversation(convo.id);
                         }} aria-label="删除"><Trash2 size={14} /></button>
                       </span>
@@ -143,10 +147,10 @@ export function Sidebar({
         <button className="memory-entry" type="button" onClick={onOpenMemory}>
           <Sparkles size={17} />项目记忆
         </button>
-        <div className="theme-switch" onClick={() => setTheme((p) => (p === "light" ? "dark" : "light"))} role="switch" aria-checked={theme === "dark"}>
+        <button className="theme-switch" type="button" onClick={() => setTheme((p) => (p === "light" ? "dark" : "light"))} role="switch" aria-checked={theme === "dark"} aria-label="切换亮色/暗色主题">
           <span className="theme-switch-track"><span className="theme-switch-thumb">{theme === "light" ? <Sun size={14} /> : <Moon size={14} />}</span></span>
           <span className="theme-switch-label">{theme === "light" ? "亮色" : "暗色"}</span>
-        </div>
+        </button>
         <div className="user-card">
           <img src="/assets/user-avatar.png" alt="" />
           <span><strong>金豆小子</strong><small>本地创作者</small></span>
