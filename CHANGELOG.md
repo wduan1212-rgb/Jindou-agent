@@ -47,3 +47,17 @@ v0.3.0 代码质量优化 —— Claude Code + Codex 双审查对齐后的 6 项
 
 - v0.4.0：流式输出（SSE）+ API 设置页 baseURL/model 切换
 - v0.5.0：参考图上传/存储闭环
+
+## 测试结果
+
+- agent-15s-check：6/6 ✅
+- agent-validation：15/15 ✅
+- agent-v030-check：10/10 ✅ + 4/4 单元测试
+- 31场景 × 3轮 = 93次检验
+
+## 发布状态
+
+- GitHub push：✅ tag v0.3.0
+- macOS dmg 构建：✅ arm64 + x64
+- 本地桌面版更新：✅ /Applications/Jindou Agent.app
+- Spotlight 清理：✅ 只有 1 个结果
