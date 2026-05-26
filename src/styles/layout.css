@@ -235,6 +235,55 @@
   padding-left: 20px;
 }
 
+.folder-edit-row,
+.convo-edit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.inline-edit-input {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  min-width: 0;
+}
+
+.edit-confirm,
+.edit-cancel {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.edit-confirm {
+  background: var(--accent);
+  color: #fff;
+}
+
+.edit-cancel {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.edit-cancel:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
 .project-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

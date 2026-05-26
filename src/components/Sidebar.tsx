@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronRight, Download, FolderPlus, MessageSquarePlus, MessageSquareText, Moon, Pencil, Search, Settings2, Sparkles, Sun, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Check, ChevronDown, ChevronRight, Download, FolderPlus, MessageSquarePlus, MessageSquareText, Moon, Pencil, Search, Settings2, Sparkles, Sun, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceData } from "../types/project";
 
 interface SidebarProps {
@@ -39,11 +39,57 @@ export function Sidebar({
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [theme, setTheme] = useState<"light" | "dark">(getInitialTheme);
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [editingConvoId, setEditingConvoId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const editRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     try { localStorage.setItem("jindou.theme", theme); } catch {}
   }, [theme]);
+
+  useEffect(() => {
+    if (editingFolderId || editingConvoId) {
+      editRef.current?.focus();
+      editRef.current?.select();
+    }
+  }, [editingFolderId, editingConvoId]);
+
+  function startEditFolder(id: string, title: string) {
+    setEditingFolderId(id);
+    setEditingConvoId(null);
+    setEditValue(title);
+  }
+
+  function startEditConvo(id: string, title: string) {
+    setEditingConvoId(id);
+    setEditingFolderId(null);
+    setEditValue(title);
+  }
+
+  function confirmEdit() {
+    const v = editValue.trim();
+    if (v && editingFolderId) {
+      onRenameFolder(editingFolderId, v);
+    } else if (v && editingConvoId) {
+      onRenameConversation(editingConvoId, v);
+    }
+    setEditingFolderId(null);
+    setEditingConvoId(null);
+    setEditValue("");
+  }
+
+  function cancelEdit() {
+    setEditingFolderId(null);
+    setEditingConvoId(null);
+    setEditValue("");
+  }
+
+  function handleEditKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") { e.preventDefault(); confirmEdit(); }
+    if (e.key === "Escape") { e.preventDefault(); cancelEdit(); }
+  }
 
   const filteredFolders = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -82,25 +128,42 @@ export function Sidebar({
         {filteredFolders.map((folder) => {
           const isExpanded = expandedFolders.has(folder.id);
           const folderConvos = workspace.conversations.filter((c) => c.folderId === folder.id);
+          const isEditingFolder = editingFolderId === folder.id;
+
           return (
             <div key={folder.id} className="folder-group">
               <div className="folder-row">
                 <button className="folder-toggle" onClick={() => onToggleFolder(folder.id)}>
                   {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 </button>
-                <button className="folder-main" onClick={() => onToggleFolder(folder.id)}>
-                  <strong>{folder.title}</strong>
-                  <small>{folderConvos.length} 个对话</small>
-                </button>
+
+                {isEditingFolder ? (
+                  <div className="folder-edit-row">
+                    <input
+                      ref={editRef}
+                      className="inline-edit-input"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={handleEditKeyDown}
+                      onBlur={confirmEdit}
+                    />
+                    <button className="edit-confirm" onMouseDown={(e) => { e.preventDefault(); confirmEdit(); }} aria-label="确认"><Check size={14} /></button>
+                    <button className="edit-cancel" onMouseDown={(e) => { e.preventDefault(); cancelEdit(); }} aria-label="取消"><X size={14} /></button>
+                  </div>
+                ) : (
+                  <button className="folder-main" onClick={() => onToggleFolder(folder.id)}>
+                    <strong>{folder.title}</strong>
+                    <small>{folderConvos.length} 个对话</small>
+                  </button>
+                )}
+
                 <span className="folder-actions">
                   <button onClick={(e) => { e.stopPropagation(); onNewConversation(folder.id); }} aria-label="新建对话">
                     <MessageSquarePlus size={14} />
                   </button>
-                  <button onClick={(e) => {
-                    e.stopPropagation();
-                    const t = window.prompt("项目名称", folder.title)?.trim();
-                    if (t) onRenameFolder(folder.id, t);
-                  }} aria-label="重命名"><Pencil size={14} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); startEditFolder(folder.id, folder.title); }} aria-label="重命名">
+                    <Pencil size={14} />
+                  </button>
                   {workspace.folders.length > 1 && (
                     <button onClick={(e) => {
                       e.stopPropagation();
@@ -109,27 +172,42 @@ export function Sidebar({
                   )}
                 </span>
               </div>
+
               {isExpanded && (
                 <div className="convo-list">
-                  {folderConvos.map((convo) => (
-                    <div key={convo.id} className={`project-item ${convo.id === activeConversationId ? "active" : ""}`}>
-                      <button className="project-main" onClick={() => onSelectConversation(convo.id)}>
-                        <MessageSquareText size={16} />
-                        <span><strong>{convo.title}</strong><small>{convo.tag}</small></span>
-                      </button>
-                      <span className="project-actions">
-                        <button onClick={(e) => {
-                          e.stopPropagation();
-                          const t = window.prompt("对话名称", convo.title)?.trim();
-                          if (t) onRenameConversation(convo.id, t);
-                        }} aria-label="重命名"><Pencil size={14} /></button>
-                        <button onClick={(e) => {
-                          e.stopPropagation();
-                          if (window.confirm(`删除对话"${convo.title}"？`)) onDeleteConversation(convo.id);
-                        }} aria-label="删除"><Trash2 size={14} /></button>
-                      </span>
-                    </div>
-                  ))}
+                  {folderConvos.map((convo) => {
+                    const isEditingConvo = editingConvoId === convo.id;
+                    return (
+                      <div key={convo.id} className={`project-item ${convo.id === activeConversationId ? "active" : ""}`}>
+                        {isEditingConvo ? (
+                          <div className="convo-edit-row">
+                            <input
+                              ref={editRef}
+                              className="inline-edit-input"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={handleEditKeyDown}
+                              onBlur={confirmEdit}
+                            />
+                            <button className="edit-confirm" onMouseDown={(e) => { e.preventDefault(); confirmEdit(); }} aria-label="确认"><Check size={14} /></button>
+                            <button className="edit-cancel" onMouseDown={(e) => { e.preventDefault(); cancelEdit(); }} aria-label="取消"><X size={14} /></button>
+                          </div>
+                        ) : (
+                          <button className="project-main" onClick={() => onSelectConversation(convo.id)}>
+                            <MessageSquareText size={16} />
+                            <span><strong>{convo.title}</strong><small>{convo.tag}</small></span>
+                          </button>
+                        )}
+                        <span className="project-actions">
+                          <button onClick={(e) => { e.stopPropagation(); startEditConvo(convo.id, convo.title); }} aria-label="重命名"><Pencil size={14} /></button>
+                          <button onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`删除对话"${convo.title}"？`)) onDeleteConversation(convo.id);
+                          }} aria-label="删除"><Trash2 size={14} /></button>
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

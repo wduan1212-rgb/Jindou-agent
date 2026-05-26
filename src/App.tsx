@@ -197,7 +197,7 @@ export default function App() {
         input: text,
         messages: convoSnapshot.messages,
         references: convoSnapshot.references,
-        memory: activeFolder?.memory || convoSnapshot.references as any
+        memory: activeFolder?.memory ?? ({} as ProjectMemory)
       });
 
       setWorkspace((prev) => ({
