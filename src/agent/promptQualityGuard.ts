@@ -48,6 +48,8 @@ export function guardPromptText(prompt: string): QualityReport {
     .replace(/接上一段[，,]?\s*/g, "")
     .replace(/^\s*(?:口播|旁白|对白|台词)[：:]\s*(?:无|没有|不需要|无口播|无对白|无旁白)\s*$/gim, "")
     .replace(/^\s*画面[：:]\s*无口播\s*$/gim, "")
+    .replace(/(口播|旁白|对白|台词)[^：:\n]*[：:]\s*[“"]([^”"]+)[”"]\s*[（(][^）)]*[）)]/g, (_m: string, label: string, text: string) => `${label}："${text}"`)
+    .replace(/(口播|旁白|对白|台词)[^：:\n]*[：:]\s*([^（(\n]+)[（(][^）)]*[）)]/g, (_m: string, label: string, text: string) => `${label}：${text.trim()}`)
     .replace(/真实\s+手机\s+手持/g, "真实手机手持")
     .replace(/不写(?:、不写)+[；;，,。]?\s*/g, "")
     .replace(/不写[；;，,。]?\s*/g, "")
