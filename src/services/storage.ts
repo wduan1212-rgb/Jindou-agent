@@ -178,8 +178,9 @@ function compactWorkspace(ws: WorkspaceData): WorkspaceData {
 // ===== API Settings =====
 
 export function loadApiSettings(): ApiSettings {
+  const defaultKey = typeof __DEFAULT_LLM_API_KEY__ !== "undefined" ? __DEFAULT_LLM_API_KEY__ : "";
   const fallback: ApiSettings = {
-    llmBaseUrl: DEFAULT_LLM_BASE_URL, llmModel: DEFAULT_LLM_MODEL, llmApiKey: "",
+    llmBaseUrl: DEFAULT_LLM_BASE_URL, llmModel: DEFAULT_LLM_MODEL, llmApiKey: defaultKey,
     videoBaseUrl: "", videoModel: "Seedance", videoApiKey: ""
   };
   try {
